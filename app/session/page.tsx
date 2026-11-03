@@ -1,0 +1,535 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useData } from '@/lib/data';
+import { levelAdvice, lastStakeFor, bankBalance } from '@/lib/calc';
+import { eur, hms, uuid } from '@/lib/format';
+import {
+  clearActive,
+  elapsedSeconds,
+  loadActive,
+  pauseActive,
+  resumeActive,
+  saveActive,
+} from '@/lib/local';
+import { DEFAULT_BUYINS, DEFAULT_LADDER, type ActiveSession, type GameType, type LevelRule, type Preset, type Session, type Venue } from '@/lib/types';
+import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
+import { stakeLabel } from '@/components/SessionRow';
+
+interface Setup {
+  bankId: string;
+  gameType: GameType;
+  venue: Venue;
+  place: string;
+  stake: string;
+  buyIn: string;
+}
+
+const GAME_OPTS = [
+  { value: 'cash' as const, label: 'Cash' },
+  { value: 'tournament' as const, label: 'Torneo' },
+];
+const VENUE_OPTS = [
+  { value: 'online' as const, label: 'Online' },
+  { value: 'live' as const, label: 'Live' },
+];
+
+// ───────────── Campos de configuración (inicio y registro manual) ─────────────
+
+function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<Setup>) => void }) {
+  const d = useData();
+  const banks = d.banks.filter((b) => !b.archived);
+  const bank = d.banks.find((b) => b.id === value.bankId);
+  const rule: Pick<LevelRule, 'buyins' | 'down_buyins' | 'ladder'> =
+    d.rules.find((r) => r.bank_id === value.bankId && r.game_type === value.gameType) ?? {
+      ...DEFAULT_BUYINS[value.gameType],
+      ladder: DEFAULT_LADDER[value.gameType],
+    };
+  const balance = bank ? bankBalance(bank, d.movements, d.sessions) : 0;
+  const advice = levelAdvice(
+    balance,
+    { id: '', bank_id: value.bankId, game_type: value.gameType, ...rule },
+    lastStakeFor(d.sessions, value.bankId, value.gameType)
+  );
+  const stakeNum = parseNum(value.stake);
+  const needed = stakeNum != null ? stakeNum * rule.buyins : null;
+  const over = needed != null && needed > balance + 1e-9;
+
+  return (
+    <div className="stack">
+      {banks.length > 1 && (
+        <Field label="Bolsa">
+          <select className="input" value={value.bankId} onChange={(e) => onChange({ bankId: e.target.value })}>
+            {banks.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} · {eur(bankBalance(b, d.movements, d.sessions))}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <Segmented value={value.gameType} options={GAME_OPTS} onChange={(gameType) => onChange({ gameType, stake: '', buyIn: '' })} />
+      <Segmented value={value.venue} options={VENUE_OPTS} onChange={(venue) => onChange({ venue })} />
+      <Field label="Sala / lugar (opcional)">
+        <input className="input" value={value.place} onChange={(e) => onChange({ place: e.target.value })} placeholder={value.venue === 'live' ? 'Casino, club…' : 'PokerStars, GGPoker…'} />
+      </Field>
+
+      <Field label={value.gameType === 'cash' ? 'Nivel (NL) — buy-in de 100 ciegas, en €' : 'ABI del torneo (€)'}>
+        <input className="input" inputMode="decimal" value={value.stake} onChange={(e) => onChange({ stake: e.target.value })} placeholder={advice.current ? String(advice.current) : ''} />
+      </Field>
+      <div className="chips" aria-label="Niveles">
+        {rule.ladder.map((l) => (
+          <button key={l} type="button" className="chip" aria-pressed={stakeNum === l} onClick={() => onChange({ stake: String(l) })}>
+            {value.gameType === 'cash' ? `NL${l}` : eur(l)}
+          </button>
+        ))}
+      </div>
+      {advice.recommended != null ? (
+        <p className="small muted">
+          Con {eur(balance)} tu gestión permite hasta {stakeLabel(value.gameType, advice.recommended)}.
+        </p>
+      ) : (
+        <p className="small warn">Tu bankroll actual no cubre ni el nivel más bajo de tu escalera.</p>
+      )}
+      {over && needed != null && (
+        <div className="notice">
+          Estás por encima de tu gestión: este nivel pide al menos {eur(needed)} ({rule.buyins} buy-ins) y tienes {eur(balance)}.
+        </div>
+      )}
+      <Field label="Buy-in inicial (€)">
+        <input className="input" inputMode="decimal" value={value.buyIn} onChange={(e) => onChange({ buyIn: e.target.value })} placeholder={value.stake || '0'} />
+      </Field>
+    </div>
+  );
+}
+
+// ───────────── Cierre / registro manual ─────────────
+
+interface EditorBase {
+  setup: Setup;
+  buyInTotal: string;
+  entries: number;
+  startedAt: number;
+  endedAt: number;
+  durationMin: string;
+}
+
+function SessionEditor({
+  manual,
+  base,
+  onCancel,
+  onSaved,
+}: {
+  manual: boolean;
+  base: EditorBase;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const d = useData();
+  const [setup, setSetup] = useState<Setup>(base.setup);
+  const [buyInTotal, setBuyInTotal] = useState(base.buyInTotal);
+  const [cashOut, setCashOut] = useState('');
+  const [durationMin, setDurationMin] = useState(base.durationMin);
+  const [date, setDate] = useState(() => {
+    const dt = new Date(base.startedAt);
+    dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+    return dt.toISOString().slice(0, 16);
+  });
+  const [position, setPosition] = useState('');
+  const [players, setPlayers] = useState('');
+  const [mood, setMood] = useState<number | null>(null);
+  const [play, setPlay] = useState<number | null>(null);
+  const [notes, setNotes] = useState('');
+  const [tags, setTags] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const co = parseNum(cashOut);
+    const bi = manual ? parseNum(setup.buyIn) : parseNum(buyInTotal);
+    const dur = parseNum(durationMin);
+    if (co == null || co < 0) return setErr('Indica cuánto te llevas (cash-out), 0 si has perdido todo.');
+    if (bi == null || bi <= 0) return setErr('Indica el buy-in total (mayor que 0).');
+    if (dur == null || dur < 0) return setErr('Indica una duración válida en minutos.');
+    if (!setup.bankId) return setErr('Elige una bolsa.');
+
+    const startedAt = manual ? new Date(date).getTime() : base.startedAt;
+    if (!Number.isFinite(startedAt)) return setErr('La fecha no es válida.');
+    const endedAt = manual ? startedAt + dur * 60_000 : base.endedAt;
+
+    const s: Session = {
+      id: uuid(),
+      bank_id: setup.bankId,
+      game_type: setup.gameType,
+      venue: setup.venue,
+      place: setup.place.trim() || null,
+      stake: parseNum(setup.stake),
+      buy_in: bi,
+      cash_out: co,
+      entries: base.entries,
+      started_at: new Date(startedAt).toISOString(),
+      ended_at: new Date(endedAt).toISOString(),
+      duration_seconds: Math.round(dur * 60),
+      mood,
+      play_quality: play,
+      notes: notes.trim() || null,
+      tags: tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+      players: setup.gameType === 'tournament' ? (parseNum(players) != null ? Math.round(parseNum(players) as number) : null) : null,
+      position: setup.gameType === 'tournament' ? (parseNum(position) != null ? Math.round(parseNum(position) as number) : null) : null,
+    };
+    setBusy(true);
+    await d.saveSession(s);
+    setBusy(false);
+    onSaved();
+  }
+
+  return (
+    <>
+      {manual && (
+        <Card title="Datos de la sesión">
+          <SetupFields value={setup} onChange={(p) => setSetup((s) => ({ ...s, ...p }))} />
+          <Field label="Inicio">
+            <input className="input" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        </Card>
+      )}
+
+      <Card title="Resultado">
+        {!manual && (
+          <Field label="Buy-in total (€) — incluye recompras">
+            <input className="input" inputMode="decimal" value={buyInTotal} onChange={(e) => setBuyInTotal(e.target.value)} />
+          </Field>
+        )}
+        <Field label="Cash-out / premio (€)">
+          <input className="input" inputMode="decimal" autoFocus={!manual} value={cashOut} onChange={(e) => setCashOut(e.target.value)} placeholder="0" />
+        </Field>
+        <Field label="Duración (minutos)">
+          <input className="input" inputMode="numeric" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
+        </Field>
+        {setup.gameType === 'tournament' && (
+          <div className="row">
+            <div className="grow">
+              <Field label="Puesto">
+                <input className="input" inputMode="numeric" value={position} onChange={(e) => setPosition(e.target.value)} />
+              </Field>
+            </div>
+            <div className="grow">
+              <Field label="Jugadores">
+                <input className="input" inputMode="numeric" value={players} onChange={(e) => setPlayers(e.target.value)} />
+              </Field>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card title="Cómo ha ido">
+        <Field label="Estado mental">
+          <Rating value={mood} onChange={setMood} low="tilteado / cansado" high="fino y centrado" />
+        </Field>
+        <Field label="Cómo has jugado (decisiones, no resultado)">
+          <Rating value={play} onChange={setPlay} low="mal" high="muy bien" />
+        </Field>
+        <Field label="Notas">
+          <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Manos a revisar, lecturas, tilt…" />
+        </Field>
+        <Field label="Etiquetas (separadas por comas)">
+          <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
+        </Field>
+      </Card>
+
+      {err && <p className="error">{err}</p>}
+      <button className="btn btn-primary btn-block" disabled={busy} onClick={save}>
+        {busy ? 'Guardando…' : 'Guardar sesión'}
+      </button>
+      <button className="btn btn-ghost btn-block" onClick={onCancel}>
+        {manual ? 'Cancelar' : 'Volver a la sesión'}
+      </button>
+    </>
+  );
+}
+
+// ───────────── Página ─────────────
+
+export default function SessionPage() {
+  const d = useData();
+  const router = useRouter();
+  const [loaded, setLoaded] = useState(false);
+  const [active, setActive] = useState<ActiveSession | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [view, setView] = useState<'main' | 'close' | 'manual'>('main');
+  const [closeAt, setCloseAt] = useState(0);
+  const [rebuy, setRebuy] = useState('');
+  const [showRebuy, setShowRebuy] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [presetMsg, setPresetMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const firstBank = d.banks.find((b) => !b.archived);
+  const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', stake: '', buyIn: '' });
+
+  useEffect(() => {
+    setActive(loadActive());
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!setup.bankId && firstBank) {
+      setSetup((s) => ({ ...s, bankId: d.filter !== 'all' && d.banks.some((b) => b.id === d.filter) ? d.filter : firstBank.id }));
+    }
+  }, [firstBank, setup.bankId, d.filter, d.banks]);
+
+  const bankName = useMemo(() => d.banks.find((b) => b.id === active?.bank_id)?.name, [d.banks, active]);
+
+  if (!loaded) return null;
+
+  if (d.banks.length === 0) {
+    return (
+      <>
+        <h1>Sesión</h1>
+        <Card>
+          <p className="muted">Primero crea una bolsa de bankroll en Inicio o en Ajustes.</p>
+        </Card>
+      </>
+    );
+  }
+
+  function update(next: ActiveSession | null) {
+    if (next) saveActive(next);
+    else clearActive();
+    setActive(next);
+  }
+
+  function start() {
+    const stake = parseNum(setup.stake);
+    const buyIn = parseNum(setup.buyIn) ?? stake;
+    if (!setup.bankId) return setErr('Elige una bolsa.');
+    if (buyIn == null || buyIn <= 0) return setErr('Indica el nivel o el buy-in inicial.');
+    setErr(null);
+    update({
+      id: uuid(),
+      bank_id: setup.bankId,
+      game_type: setup.gameType,
+      venue: setup.venue,
+      place: setup.place.trim(),
+      stake,
+      buy_in: buyIn,
+      entries: 1,
+      started_at: Date.now(),
+      paused_total_ms: 0,
+      paused_at: null,
+    });
+  }
+
+  function startFromPreset(p: Preset) {
+    const buyIn = p.buy_in ?? p.stake;
+    if (buyIn == null || buyIn <= 0) return setErr('Este preset no tiene buy-in. Bórralo y vuelve a crearlo.');
+    setErr(null);
+    update({
+      id: uuid(),
+      bank_id: p.bank_id,
+      game_type: p.game_type,
+      venue: p.venue,
+      place: p.place ?? '',
+      stake: p.stake,
+      buy_in: buyIn,
+      entries: 1,
+      started_at: Date.now(),
+      paused_total_ms: 0,
+      paused_at: null,
+    });
+  }
+
+  async function saveAsPreset() {
+    const stake = parseNum(setup.stake);
+    const buyIn = parseNum(setup.buyIn) ?? stake;
+    if (!presetName.trim()) return setPresetMsg('Ponle un nombre al preset.');
+    if (!setup.bankId) return setPresetMsg('Elige una bolsa.');
+    if (buyIn == null || buyIn <= 0) return setPresetMsg('Indica el nivel o el buy-in antes de guardarlo.');
+    const e = await d.savePreset({
+      bank_id: setup.bankId,
+      name: presetName.trim(),
+      game_type: setup.gameType,
+      venue: setup.venue,
+      place: setup.place.trim() || null,
+      stake,
+      buy_in: buyIn,
+    });
+    setPresetMsg(e ?? 'Preset guardado');
+    if (!e) setPresetName('');
+  }
+
+  // ── Cierre de una sesión en curso ──
+  if (view === 'close' && active) {
+    const secs = elapsedSeconds(active, closeAt);
+    return (
+      <>
+        <h1>Cerrar sesión</h1>
+        <SessionEditor
+          manual={false}
+          base={{
+            setup: {
+              bankId: active.bank_id,
+              gameType: active.game_type,
+              venue: active.venue,
+              place: active.place,
+              stake: active.stake != null ? String(active.stake) : '',
+              buyIn: String(active.buy_in),
+            },
+            buyInTotal: String(active.buy_in),
+            entries: active.entries,
+            startedAt: active.started_at,
+            endedAt: closeAt,
+            durationMin: String(Math.max(1, Math.round(secs / 60))),
+          }}
+          onCancel={() => setView('main')}
+          onSaved={() => {
+            update(null);
+            router.push('/');
+          }}
+        />
+      </>
+    );
+  }
+
+  // ── Registro manual de una sesión ya jugada ──
+  if (view === 'manual') {
+    return (
+      <>
+        <h1>Registrar sesión pasada</h1>
+        <SessionEditor
+          manual
+          base={{ setup, buyInTotal: '', entries: 1, startedAt: Date.now() - 3_600_000, endedAt: Date.now(), durationMin: '60' }}
+          onCancel={() => setView('main')}
+          onSaved={() => router.push('/history')}
+        />
+      </>
+    );
+  }
+
+  // ── Sesión en curso ──
+  if (active) {
+    const paused = active.paused_at != null;
+    const secs = elapsedSeconds(active, now);
+    return (
+      <>
+        <h1>Sesión en curso</h1>
+        <Card>
+          <div className={`timer ${paused ? 'paused' : ''}`}>{hms(secs)}</div>
+          <p className="muted small" style={{ textAlign: 'center' }}>
+            {active.game_type === 'cash' ? 'Cash' : 'Torneo'} {active.venue === 'live' ? 'live' : 'online'}
+            {active.stake != null && ` · ${stakeLabel(active.game_type, active.stake)}`}
+            {active.place && ` · ${active.place}`}
+            {bankName && d.banks.length > 1 && ` · ${bankName}`}
+          </p>
+          <div className="stats" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <div className="stat">
+              <div className="k">Invertido</div>
+              <div className="v num">{eur(active.buy_in)}</div>
+            </div>
+            <div className="stat">
+              <div className="k">{active.game_type === 'tournament' ? 'Entradas' : 'Recompras'}</div>
+              <div className="v num">{active.entries}</div>
+            </div>
+          </div>
+          <div className="row">
+            <button className="btn grow" onClick={() => update(paused ? resumeActive(active) : pauseActive(active))}>
+              {paused ? 'Reanudar' : 'Pausar'}
+            </button>
+            <button className="btn grow" onClick={() => setShowRebuy((v) => !v)}>
+              {active.game_type === 'tournament' ? '+ Re-entry' : '+ Recompra'}
+            </button>
+          </div>
+          {showRebuy && (
+            <div className="row">
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder={String(active.stake ?? active.buy_in)}
+                value={rebuy}
+                onChange={(e) => setRebuy(e.target.value)}
+                aria-label="Importe"
+              />
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const amt = parseNum(rebuy) ?? active.stake ?? null;
+                  if (amt == null || amt <= 0) return;
+                  update({ ...active, buy_in: active.buy_in + amt, entries: active.entries + 1 });
+                  setRebuy('');
+                  setShowRebuy(false);
+                }}
+              >
+                Añadir
+              </button>
+            </div>
+          )}
+        </Card>
+        <button
+          className="btn btn-primary btn-block"
+          onClick={() => {
+            setCloseAt(active.paused_at ?? Date.now());
+            setView('close');
+          }}
+        >
+          Terminar sesión
+        </button>
+        <button
+          className="btn btn-danger btn-block"
+          onClick={() => {
+            if (window.confirm('¿Descartar esta sesión sin guardarla?')) update(null);
+          }}
+        >
+          Descartar
+        </button>
+      </>
+    );
+  }
+
+  // ── Nueva sesión ──
+  return (
+    <>
+      <h1>Nueva sesión</h1>
+      {d.presets.length > 0 && (
+        <Card title="Empezar con un toque">
+          <div className="chips" aria-label="Presets">
+            {d.presets.map((p) => (
+              <button key={p.id} className="chip" onClick={() => startFromPreset(p)}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+          <p className="tiny muted">Arranca el temporizador al instante con esa configuración.</p>
+        </Card>
+      )}
+      <Card title={d.presets.length > 0 ? 'O configura una sesión' : undefined}>
+        <SetupFields value={setup} onChange={(p) => setSetup((s) => ({ ...s, ...p }))} />
+        {err && <p className="error">{err}</p>}
+        <button className="btn btn-primary btn-block" onClick={start}>
+          Empezar sesión
+        </button>
+        <details>
+          <summary className="small muted">Guardar esta configuración como preset</summary>
+          <div className="stack" style={{ marginTop: 10 }}>
+            <input className="input" value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Ej.: NL5 online, Torneo del jueves" aria-label="Nombre del preset" />
+            <button type="button" className="btn btn-sm" onClick={saveAsPreset}>
+              Guardar preset
+            </button>
+            {presetMsg && <span className={`small ${presetMsg === 'Preset guardado' ? 'pos' : 'error'}`}>{presetMsg}</span>}
+          </div>
+        </details>
+      </Card>
+      <button className="btn btn-ghost btn-block" onClick={() => setView('manual')}>
+        Registrar una sesión ya jugada
+      </button>
+    </>
+  );
+}
