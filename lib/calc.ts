@@ -235,6 +235,32 @@ export function computeStreaks(list: Session[]): Streaks {
   return { current: { type: curCount > 0 ? curType : null, count: curCount }, bestWin, worstLoss };
 }
 
+/**
+ * Días seguidos jugando (la llama). Cuenta días naturales con al menos una sesión (por inicio o fin).
+ * `extra` permite contar también sesiones abiertas. Si hoy aún no has jugado pero ayer sí, la racha sigue viva.
+ */
+export function dayStreak(list: Session[], extra: number[] = [], now = new Date()): number {
+  const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const days = new Set<string>();
+  for (const s of list) {
+    if (s.started_at) days.add(key(new Date(s.started_at)));
+    days.add(key(new Date(s.ended_at)));
+  }
+  for (const t of extra) days.add(key(new Date(t)));
+
+  const cur = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!days.has(key(cur))) {
+    cur.setDate(cur.getDate() - 1);
+    if (!days.has(key(cur))) return 0;
+  }
+  let n = 0;
+  while (days.has(key(cur))) {
+    n++;
+    cur.setDate(cur.getDate() - 1);
+  }
+  return n;
+}
+
 export interface MoodRow {
   mood: number;
   count: number;

@@ -149,6 +149,10 @@ textarea.input { min-height: 84px; resize: vertical; }
 .bcard .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
 .icon-btn { appearance: none; border: 0; background: transparent; color: var(--muted); padding: 6px; margin: -6px; border-radius: 10px; cursor: pointer; display: inline-grid; place-items: center; }
 .timer-sm { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.live { border: 1px solid var(--border); background: var(--bg); border-radius: 12px; padding: 12px; display: grid; gap: 10px; }
+.badge.flame { display: inline-flex; align-items: center; gap: 4px; color: #fb923c; border-color: #6b3a14; font-size: 14px; padding: 3px 10px; }
+:root[data-theme='light'] .badge.flame { color: #c2410c; border-color: #f3c8a4; }
+.icon-btn.plus { width: 34px; height: 34px; margin: 0; padding: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 22px; font-weight: 700; line-height: 1; }
 
 /* Estadísticas */
 .stats2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }

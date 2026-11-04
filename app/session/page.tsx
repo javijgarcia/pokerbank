@@ -5,17 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useData } from '@/lib/data';
 import { levelAdvice, lastStakeFor, bankBalance } from '@/lib/calc';
 import { eur, hms, uuid } from '@/lib/format';
-import {
-  clearActive,
-  elapsedSeconds,
-  loadActive,
-  pauseActive,
-  resumeActive,
-  saveActive,
-} from '@/lib/local';
+import { activeFromPreset, activeTitle } from '@/lib/active';
+import { elapsedSeconds, loadActives, pauseActive, removeActive, resumeActive, upsertActive } from '@/lib/local';
 import { DEFAULT_BUYINS, DEFAULT_LADDER, type ActiveSession, type GameType, type LevelRule, type Preset, type Session, type Venue } from '@/lib/types';
 import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
-import { stakeLabel } from '@/components/SessionRow';
+import { activeSub, stakeLabel } from '@/components/SessionRow';
 
 interface Setup {
   bankId: string;
@@ -296,7 +290,9 @@ export default function SessionPage() {
   const d = useData();
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
-  const [active, setActive] = useState<ActiveSession | null>(null);
+  const [actives, setActives] = useState<ActiveSession[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [startNew, setStartNew] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [view, setView] = useState<'main' | 'close' | 'manual'>('main');
   const [closeAt, setCloseAt] = useState(0);
@@ -309,17 +305,31 @@ export default function SessionPage() {
   const firstBank = d.banks.find((b) => !b.archived);
   const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', tournamentName: '', stake: '', buyIn: '' });
 
+  // Sesión que se está viendo: la elegida, o la única abierta si no se pidió empezar otra.
+  const active = actives.find((a) => a.id === selectedId) ?? (!startNew && actives.length === 1 ? actives[0] : null);
+
   useEffect(() => {
-    const a = loadActive();
-    setActive(a);
-    // Enlaces desde Inicio: /session?close=1 abre el cierre; /session?type=cash|tournament preselecciona el tipo.
+    const list = loadActives();
+    setActives(list);
+    // Enlaces desde Inicio:
+    //   /session?close=ID  abre el cierre de esa sesión
+    //   /session?id=ID     abre esa sesión
+    //   /session?type=cash|tournament  empieza una sesión nueva con ese tipo
     const q = new URLSearchParams(window.location.search);
-    if (a && q.get('close') === '1') {
-      setCloseAt(a.paused_at ?? Date.now());
-      setView('close');
-    }
+    const closeParam = q.get('close');
+    const idParam = q.get('id');
     const type = q.get('type');
-    if (!a && (type === 'cash' || type === 'tournament')) {
+    if (closeParam) {
+      const target = list.find((a) => a.id === closeParam) ?? (list.length === 1 ? list[0] : null);
+      if (target) {
+        setSelectedId(target.id);
+        setCloseAt(target.paused_at ?? Date.now());
+        setView('close');
+      }
+    } else if (idParam && list.some((a) => a.id === idParam)) {
+      setSelectedId(idParam);
+    } else if (type === 'cash' || type === 'tournament') {
+      setStartNew(true);
       setSetup((s) => ({ ...s, gameType: type, stake: '', buyIn: '', tournamentName: '' }));
     }
     setLoaded(true);
@@ -336,8 +346,6 @@ export default function SessionPage() {
     }
   }, [firstBank, setup.bankId, d.filter, d.banks]);
 
-  const bankName = useMemo(() => d.banks.find((b) => b.id === active?.bank_id)?.name, [d.banks, active]);
-
   if (!loaded) return null;
 
   if (d.banks.length === 0) {
@@ -351,10 +359,22 @@ export default function SessionPage() {
     );
   }
 
-  function update(next: ActiveSession | null) {
-    if (next) saveActive(next);
-    else clearActive();
-    setActive(next);
+  const bankName = (id: string) => d.banks.find((b) => b.id === id)?.name;
+
+  function update(next: ActiveSession) {
+    setActives(upsertActive(next));
+  }
+
+  function discard(id: string) {
+    setActives(removeActive(id));
+  }
+
+  function begin(a: ActiveSession) {
+    update(a);
+    setSelectedId(a.id);
+    setStartNew(false);
+    setShowRebuy(false);
+    setView('main');
   }
 
   function start() {
@@ -362,7 +382,7 @@ export default function SessionPage() {
     if (!setup.bankId) return setErr('Elige una bolsa.');
     if (buyIn == null || buyIn <= 0) return setErr(setup.gameType === 'tournament' ? 'Indica el buy-in inicial.' : 'Indica el nivel o el buy-in inicial.');
     setErr(null);
-    update({
+    begin({
       id: uuid(),
       bank_id: setup.bankId,
       game_type: setup.gameType,
@@ -379,23 +399,10 @@ export default function SessionPage() {
   }
 
   function startFromPreset(p: Preset) {
-    const buyIn = p.buy_in ?? p.stake;
-    if (buyIn == null || buyIn <= 0) return setErr('Este preset no tiene buy-in. Bórralo y vuelve a crearlo.');
+    const a = activeFromPreset(p);
+    if (!a) return setErr('Este preset no tiene buy-in. Bórralo y vuelve a crearlo.');
     setErr(null);
-    update({
-      id: uuid(),
-      bank_id: p.bank_id,
-      game_type: p.game_type,
-      venue: p.venue,
-      place: p.place ?? '',
-      tournament_name: p.tournament_name ?? '',
-      stake: p.stake,
-      buy_in: buyIn,
-      entries: 1,
-      started_at: Date.now(),
-      paused_total_ms: 0,
-      paused_at: null,
-    });
+    begin(a);
   }
 
   async function saveAsPreset() {
@@ -443,7 +450,7 @@ export default function SessionPage() {
           }}
           onCancel={() => setView('main')}
           onSaved={() => {
-            update(null);
+            discard(active.id);
             router.push('/');
           }}
         />
@@ -466,7 +473,7 @@ export default function SessionPage() {
     );
   }
 
-  // ── Sesión en curso ──
+  // ── Una sesión en curso ──
   if (active) {
     const paused = active.paused_at != null;
     const secs = elapsedSeconds(active, now);
@@ -476,11 +483,11 @@ export default function SessionPage() {
         <Card>
           <div className={`timer ${paused ? 'paused' : ''}`}>{hms(secs)}</div>
           <p className="muted small" style={{ textAlign: 'center' }}>
-            {active.game_type === 'cash' ? 'Cash' : 'Torneo'} {active.venue === 'live' ? 'live' : 'online'}
-            {active.game_type === 'cash' && active.stake != null && ` · ${stakeLabel('cash', active.stake)}`}
-            {active.game_type === 'tournament' && active.tournament_name && ` · ${active.tournament_name}`}
-            {active.place && ` · ${active.place}`}
-            {bankName && d.banks.length > 1 && ` · ${bankName}`}
+            <strong>{activeTitle(active)}</strong>
+            {(() => {
+              const sub = activeSub(active, d.banks.length > 1 ? bankName(active.bank_id) : undefined);
+              return sub ? ` · ${sub}` : '';
+            })()}
           </p>
           <div className="stats" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             <div className="stat">
@@ -497,7 +504,7 @@ export default function SessionPage() {
               {paused ? 'Reanudar' : 'Pausar'}
             </button>
             <button className="btn grow" onClick={() => setShowRebuy((v) => !v)}>
-              {active.game_type === 'tournament' ? '+ Re-entry' : '+ Recompra'}
+              {active.game_type === 'tournament' ? '+ Entrada' : '+ Recompra'}
             </button>
           </div>
           {showRebuy && (
@@ -535,12 +542,63 @@ export default function SessionPage() {
           Terminar sesión
         </button>
         <button
+          className="btn btn-block"
+          onClick={() => {
+            setSelectedId(null);
+            setStartNew(true);
+          }}
+        >
+          Abrir otra sesión a la vez
+        </button>
+        {actives.length > 1 && (
+          <button className="btn btn-ghost btn-block" onClick={() => setSelectedId(null)}>
+            Ver todas mis sesiones abiertas ({actives.length})
+          </button>
+        )}
+        <button
           className="btn btn-danger btn-block"
           onClick={() => {
-            if (window.confirm('¿Descartar esta sesión sin guardarla?')) update(null);
+            if (window.confirm('¿Descartar esta sesión sin guardarla?')) {
+              discard(active.id);
+              setSelectedId(null);
+              router.push('/');
+            }
           }}
         >
           Descartar
+        </button>
+      </>
+    );
+  }
+
+  // ── Varias sesiones abiertas: elegir cuál ──
+  if (!startNew && actives.length > 1) {
+    return (
+      <>
+        <h1>Sesiones en curso</h1>
+        <Card>
+          <div className="list">
+            {actives.map((a) => (
+              <div className="item" key={a.id}>
+                <div style={{ minWidth: 0 }}>
+                  <strong>{activeTitle(a)}</strong>
+                  <div className="small muted">{activeSub(a, d.banks.length > 1 ? bankName(a.bank_id) : undefined)}</div>
+                  <div className="tiny muted">Invertido {eur(a.buy_in)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className={`num ${a.paused_at ? 'warn' : ''}`} style={{ fontWeight: 700 }}>
+                    {hms(elapsedSeconds(a, now))}
+                  </div>
+                  <button className="btn btn-sm" style={{ marginTop: 4 }} onClick={() => setSelectedId(a.id)}>
+                    Abrir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <button className="btn btn-primary btn-block" onClick={() => setStartNew(true)}>
+          Abrir otra sesión
         </button>
       </>
     );
@@ -550,6 +608,11 @@ export default function SessionPage() {
   return (
     <>
       <h1>Nueva sesión</h1>
+      {actives.length > 0 && (
+        <button className="btn btn-ghost btn-block" onClick={() => setStartNew(false)}>
+          Volver a mis sesiones abiertas ({actives.length})
+        </button>
+      )}
       {d.presets.length > 0 && (
         <Card title="Empezar con un toque">
           <div className="chips" aria-label="Presets">

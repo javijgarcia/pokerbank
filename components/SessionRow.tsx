@@ -2,12 +2,19 @@
 
 import { sessionResult } from '@/lib/calc';
 import { dateLabel, eur, hoursLabel, signedEur } from '@/lib/format';
-import type { GameType, Session } from '@/lib/types';
+import type { ActiveSession, GameType, Session } from '@/lib/types';
 import { tone } from './ui';
 
 export function stakeLabel(type: GameType, stake: number | null): string {
   if (stake == null) return '';
   return type === 'cash' ? `NL${stake}` : `ABI ${eur(stake)}`;
+}
+
+/** Línea secundaria de una sesión abierta: nivel (solo cash), lugar y bolsa. */
+export function activeSub(a: ActiveSession, bankName?: string): string {
+  return [a.game_type === 'cash' && a.stake != null ? stakeLabel('cash', a.stake) : null, a.place || null, bankName || null]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 export default function SessionRow({

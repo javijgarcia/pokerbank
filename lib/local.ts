@@ -30,11 +30,39 @@ function remove(key: string): void {
 // ───────────── Sesión activa (temporizador) ─────────────
 // No se cuenta con setInterval persistente: se guarda la hora de inicio y se calcula al leer.
 
-const ACTIVE_KEY = 'pb.active';
+// Puede haber varias sesiones abiertas a la vez (p. ej. dos torneos online). Se guardan como lista.
+const ACTIVES_KEY = 'pb.actives';
+const LEGACY_ACTIVE_KEY = 'pb.active'; // versiones anteriores: una sola sesión
 
-export const loadActive = (): ActiveSession | null => read<ActiveSession | null>(ACTIVE_KEY, null);
-export const saveActive = (a: ActiveSession): void => write(ACTIVE_KEY, a);
-export const clearActive = (): void => remove(ACTIVE_KEY);
+export function loadActives(): ActiveSession[] {
+  const list = read<ActiveSession[] | null>(ACTIVES_KEY, null);
+  if (Array.isArray(list)) return list;
+  // Migración: si había una sesión abierta con la versión anterior, la conservamos.
+  const legacy = read<ActiveSession | null>(LEGACY_ACTIVE_KEY, null);
+  if (legacy) {
+    write(ACTIVES_KEY, [legacy]);
+    remove(LEGACY_ACTIVE_KEY);
+    return [legacy];
+  }
+  return [];
+}
+
+export const saveActives = (list: ActiveSession[]): void => write(ACTIVES_KEY, list);
+
+/** Crea o actualiza una sesión abierta y devuelve la lista resultante. */
+export function upsertActive(a: ActiveSession): ActiveSession[] {
+  const list = loadActives();
+  const next = list.some((x) => x.id === a.id) ? list.map((x) => (x.id === a.id ? a : x)) : [...list, a];
+  saveActives(next);
+  return next;
+}
+
+/** Quita una sesión abierta (al cerrarla o descartarla) y devuelve la lista resultante. */
+export function removeActive(id: string): ActiveSession[] {
+  const next = loadActives().filter((x) => x.id !== id);
+  saveActives(next);
+  return next;
+}
 
 /** Segundos jugados (sin pausas) en este instante. */
 export function elapsedSeconds(a: ActiveSession, now = Date.now()): number {

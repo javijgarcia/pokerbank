@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useData } from '@/lib/data';
-import { elapsedSeconds, loadActive } from '@/lib/local';
+import { elapsedSeconds, loadActives } from '@/lib/local';
 import { hms } from '@/lib/format';
 import type { ActiveSession } from '@/lib/types';
 import AuthForm from './AuthForm';
@@ -19,12 +19,12 @@ const NAV = [
 
 function ActivePill() {
   const pathname = usePathname();
-  const [active, setActive] = useState<ActiveSession | null>(null);
+  const [actives, setActives] = useState<ActiveSession[]>([]);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     const tick = () => {
-      setActive(loadActive());
+      setActives(loadActives());
       setNow(Date.now());
     };
     tick();
@@ -32,13 +32,14 @@ function ActivePill() {
     return () => clearInterval(t);
   }, []);
 
-  // En Inicio la sesión en curso ya se ve en "Jugando ahora"; en /session está la propia pantalla.
-  if (!active || pathname === '/session' || pathname === '/') return null;
-  const paused = active.paused_at != null;
+  // En Inicio las sesiones en curso ya se ven en "Jugando ahora"; en /session está la propia pantalla.
+  if (actives.length === 0 || pathname === '/session' || pathname === '/') return null;
+  const one = actives.length === 1 ? actives[0] : null;
+  const allPaused = actives.every((a) => a.paused_at != null);
   return (
-    <Link href="/session" className={`pill ${paused ? 'paused' : ''}`}>
-      <span>{paused ? 'Sesión en pausa' : 'Sesión en curso'}</span>
-      <span className="num">{hms(elapsedSeconds(active, now))}</span>
+    <Link href={one ? `/session?id=${one.id}` : '/session'} className={`pill ${allPaused ? 'paused' : ''}`}>
+      <span>{one ? (allPaused ? 'Sesión en pausa' : 'Sesión en curso') : `${actives.length} sesiones en curso`}</span>
+      {one && <span className="num">{hms(elapsedSeconds(one, now))}</span>}
     </Link>
   );
 }
