@@ -23,7 +23,8 @@ export interface Session {
   game_type: GameType;
   venue: Venue;
   place: string | null;
-  stake: number | null;
+  tournament_name?: string | null; // solo torneos; ausente en sesiones antiguas
+  stake: number | null; // cash: nivel (NL); torneo: buy-in inicial (= ABI)
   buy_in: number;
   cash_out: number;
   entries: number;
@@ -63,6 +64,7 @@ export interface Preset {
   game_type: GameType;
   venue: Venue;
   place: string | null;
+  tournament_name?: string | null;
   stake: number | null;
   buy_in: number | null;
 }
@@ -74,6 +76,7 @@ export interface ActiveSession {
   game_type: GameType;
   venue: Venue;
   place: string;
+  tournament_name?: string; // ausente en sesiones iniciadas con versiones anteriores
   stake: number | null;
   buy_in: number; // total invertido hasta ahora
   entries: number;

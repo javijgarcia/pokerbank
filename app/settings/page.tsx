@@ -255,7 +255,8 @@ export default function SettingsPage() {
                   <strong>{p.name}</strong>
                   <div className="tiny muted">
                     {p.game_type === 'cash' ? 'Cash' : 'Torneo'} {p.venue === 'live' ? 'live' : 'online'}
-                    {p.stake != null && ` · ${p.game_type === 'cash' ? 'NL' + p.stake : 'ABI ' + eur(p.stake)}`}
+                    {p.game_type === 'tournament' && p.tournament_name && ` · ${p.tournament_name}`}
+                    {p.stake != null && ` · ${p.game_type === 'cash' ? 'NL' + p.stake : 'buy-in ' + eur(p.stake)}`}
                     {p.place && ` · ${p.place}`}
                     {d.banks.length > 1 && ` · ${bankName(p.bank_id)}`}
                   </div>

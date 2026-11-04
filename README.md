@@ -1,17 +1,19 @@
-# PokerBank v0.2
+# PokerBank v0.2.1
 
 PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel. Multiusuario (RLS).
 
 ## Puesta en marcha
 1. Crea un proyecto en Supabase y ejecuta `supabase/schema.sql` en el SQL Editor.
-   (Si ya tenías la v0.1 instalada, ejecuta solo `supabase/migrations/002_presets.sql`. Sin ella la app funciona, pero sin presets.)
+   Si ya tenías una versión anterior instalada, ejecuta en este orden SOLO las migraciones que te falten:
+   `supabase/migrations/002_presets.sql` (presets) y `supabase/migrations/003_tournament_name.sql` (nombre del torneo).
+   Ejecútalas ANTES de desplegar la nueva versión.
 2. `cp .env.local.example .env.local` y rellena URL y anon key.
 3. `npm install && npm run dev`
 4. En Supabase > Authentication > URL Configuration añade la URL de tu app (local y Vercel).
 5. Despliegue: importa el repo en Vercel y define las dos variables de entorno.
 
 ## Qué incluye
-- Sesiones cash/torneo, live/online, con temporizador (hora de inicio + pausas, sobrevive a bloquear el móvil).
+- Sesiones cash/torneo, live/online (en torneos: nombre del torneo y buy-in inicial; el ABI se calcula en las estadísticas), con temporizador (hora de inicio + pausas, sobrevive a bloquear el móvil).
 - Recompras / re-entries durante la sesión; cierre con cash-out, estado mental 1-5, calidad de juego 1-5, notas y etiquetas.
 - Registro manual de sesiones ya jugadas.
 - Varias bolsas + Total; ingresos y retiradas; gráfico filtrable por bolsa y por mes.

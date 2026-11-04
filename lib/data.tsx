@@ -167,7 +167,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     flushing.current = true;
     try {
       const rows = q.map(({ _uid, ...row }) => ({ ...row, user_id: _uid }));
-      const { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
+      let { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
+      if (error && /tournament_name/.test(error.message)) {
+        // La migración 003 aún no se ha ejecutado: guardamos la sesión sin el nombre para no perderla.
+        const legacy = rows.map(({ tournament_name: _t, ...row }) => row);
+        ({ error } = await supabase.from('sessions').upsert(legacy, { onConflict: 'id' }));
+      }
       if (error) throw new Error(error.message);
       const synced = new Set(q.map((x) => x.id));
       const rest = loadQueue().filter((x) => !synced.has(x.id));
@@ -362,7 +367,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const savePreset = useCallback(
     async (p: Omit<Preset, 'id'>) => {
       if (!supabase) return 'Sin conexión';
-      const { error } = await supabase.from('presets').insert(p);
+      let { error } = await supabase.from('presets').insert(p);
+      if (error && /tournament_name/.test(error.message)) {
+        const { tournament_name: _t, ...legacy } = p;
+        ({ error } = await supabase.from('presets').insert(legacy));
+      }
       await refresh();
       return errMsg(error);
     },

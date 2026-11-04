@@ -101,6 +101,8 @@ export interface Stats {
   roi: number; // % sobre lo invertido
   winRate: number; // % de sesiones ganadoras
   itm: number | null; // % de torneos con premio
+  abi: number | null; // buy-in medio por entrada en torneos (null si no hay torneos)
+  bestCash: number; // mayor premio de torneo
   avgMood: number | null;
   avgPlay: number | null;
 }
@@ -112,6 +114,9 @@ export function computeStats(list: Session[]): Stats {
   let wins = 0;
   let tCount = 0;
   let tItm = 0;
+  let tInvested = 0;
+  let tEntries = 0;
+  let bestCash = 0;
   let moodSum = 0;
   let moodN = 0;
   let playSum = 0;
@@ -125,6 +130,9 @@ export function computeStats(list: Session[]): Stats {
     if (s.game_type === 'tournament') {
       tCount++;
       if (s.cash_out > 0) tItm++;
+      tInvested += s.buy_in;
+      tEntries += Math.max(1, s.entries);
+      bestCash = Math.max(bestCash, s.cash_out);
     }
     if (s.mood != null) {
       moodSum += s.mood;
@@ -145,6 +153,8 @@ export function computeStats(list: Session[]): Stats {
     roi: invested > 0 ? (profit / invested) * 100 : 0,
     winRate: list.length ? (wins / list.length) * 100 : 0,
     itm: tCount ? (tItm / tCount) * 100 : null,
+    abi: tCount ? round2(tInvested / tEntries) : null,
+    bestCash: round2(bestCash),
     avgMood: moodN ? moodSum / moodN : null,
     avgPlay: playN ? playSum / playN : null,
   };

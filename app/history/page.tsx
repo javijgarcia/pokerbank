@@ -6,6 +6,7 @@ import { computeStats, groupBy } from '@/lib/calc';
 import { eur, hoursLabel, monthKey, monthLabel, pct, signedEur } from '@/lib/format';
 import BankFilter from '@/components/BankFilter';
 import SessionRow from '@/components/SessionRow';
+import TournamentStats from '@/components/TournamentStats';
 import { Card, Segmented, Stat, tone } from '@/components/ui';
 import type { GameType, Session, Venue } from '@/lib/types';
 
@@ -47,10 +48,10 @@ export default function HistoryPage() {
   }
 
   function exportCsv() {
-    const head = ['fecha_inicio', 'fecha_fin', 'bolsa', 'tipo', 'modalidad', 'lugar', 'nivel', 'buy_in', 'cash_out', 'resultado', 'minutos', 'animo', 'juego', 'notas', 'etiquetas'];
+    const head = ['fecha_inicio', 'fecha_fin', 'bolsa', 'tipo', 'modalidad', 'lugar', 'nombre_torneo', 'nivel', 'buy_in', 'cash_out', 'resultado', 'minutos', 'animo', 'juego', 'notas', 'etiquetas'];
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = list.map((s) =>
-      [s.started_at, s.ended_at, bankName(s.bank_id), s.game_type, s.venue, s.place, s.stake, s.buy_in, s.cash_out, s.cash_out - s.buy_in, Math.round(s.duration_seconds / 60), s.mood, s.play_quality, s.notes, s.tags.join('|')]
+      [s.started_at, s.ended_at, bankName(s.bank_id), s.game_type, s.venue, s.place, s.tournament_name, s.stake, s.buy_in, s.cash_out, s.cash_out - s.buy_in, Math.round(s.duration_seconds / 60), s.mood, s.play_quality, s.notes, s.tags.join('|')]
         .map(esc)
         .join(',')
     );
@@ -106,6 +107,8 @@ export default function HistoryPage() {
           <Stat label="Ganadas" value={pct(stats.winRate)} />
         </div>
       </Card>
+
+      <TournamentStats sessions={list} title="Torneos (con estos filtros)" />
 
       {places.length > 1 && (
         <Card title="Por lugar">

@@ -39,6 +39,7 @@ export async function downloadSessionPdf(s: Session, bankName: string): Promise<
     ['Tipo', kind],
     ['Bolsa', bankName || '—'],
     ['Lugar', s.place || '—'],
+    ...(s.game_type === 'tournament' ? ([['Torneo', s.tournament_name || '—']] as [string, string][]) : []),
     ['Nivel', s.stake != null ? (s.game_type === 'cash' ? `NL${s.stake}` : `ABI ${eurPdf(s.stake)}`) : '—'],
     ['Inicio', dt(s.started_at)],
     ['Fin', dt(s.ended_at)],

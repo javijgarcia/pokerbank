@@ -33,7 +33,8 @@ create table if not exists public.sessions (
   game_type        text not null check (game_type in ('cash', 'tournament')),
   venue            text not null check (venue in ('live', 'online')),
   place            text,
-  stake            numeric(12,2),            -- cash: nivel (NL5 = 5); torneo: ABI
+  tournament_name  text,                     -- solo torneos
+  stake            numeric(12,2),            -- cash: nivel (NL5 = 5); torneo: buy-in inicial (= ABI)
   buy_in           numeric(12,2) not null,   -- total invertido (incluye recompras / re-entries)
   cash_out         numeric(12,2) not null default 0,
   entries          int not null default 1,   -- nº de buy-ins / re-entries
@@ -87,6 +88,7 @@ create table if not exists public.presets (
   game_type  text not null check (game_type in ('cash', 'tournament')),
   venue      text not null check (venue in ('live', 'online')),
   place      text,
+  tournament_name text,
   stake      numeric(12,2),
   buy_in     numeric(12,2),
   created_at timestamptz not null default now()

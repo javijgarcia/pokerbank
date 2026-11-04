@@ -27,7 +27,9 @@ export default function SessionRow({
   const hours = s.duration_seconds / 3600;
   const perHour = hours > 0 ? r / hours : null;
   const title = `${s.game_type === 'cash' ? 'Cash' : 'Torneo'} ${s.venue === 'live' ? 'live' : 'online'}`;
-  const meta = [stakeLabel(s.game_type, s.stake), s.place, bankName].filter(Boolean).join(' · ');
+  const meta = [s.game_type === 'tournament' ? s.tournament_name : null, stakeLabel(s.game_type, s.stake), s.place, bankName]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="item">

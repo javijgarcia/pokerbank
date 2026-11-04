@@ -22,8 +22,21 @@ interface Setup {
   gameType: GameType;
   venue: Venue;
   place: string;
+  tournamentName: string;
   stake: string;
   buyIn: string;
+}
+
+/**
+ * Nivel y buy-in a partir del formulario.
+ * Cash: el nivel (NL) se pone aparte y el buy-in por defecto es ese nivel.
+ * Torneo: no hay campo de ABI; el buy-in inicial es el nivel (ABI de esa sesión).
+ */
+function resolveSetup(s: Setup): { stake: number | null; buyIn: number | null } {
+  const stake = parseNum(s.stake);
+  const bi = parseNum(s.buyIn);
+  if (s.gameType === 'tournament') return { stake: bi, buyIn: bi };
+  return { stake, buyIn: bi ?? stake };
 }
 
 const GAME_OPTS = [
@@ -52,7 +65,8 @@ function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<
     { id: '', bank_id: value.bankId, game_type: value.gameType, ...rule },
     lastStakeFor(d.sessions, value.bankId, value.gameType)
   );
-  const stakeNum = parseNum(value.stake);
+  const isTournament = value.gameType === 'tournament';
+  const stakeNum = resolveSetup(value).stake;
   const needed = stakeNum != null ? stakeNum * rule.buyins : null;
   const over = needed != null && needed > balance + 1e-9;
 
@@ -69,19 +83,33 @@ function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<
           </select>
         </Field>
       )}
-      <Segmented value={value.gameType} options={GAME_OPTS} onChange={(gameType) => onChange({ gameType, stake: '', buyIn: '' })} />
+      <Segmented value={value.gameType} options={GAME_OPTS} onChange={(gameType) => onChange({ gameType, stake: '', buyIn: '', tournamentName: '' })} />
       <Segmented value={value.venue} options={VENUE_OPTS} onChange={(venue) => onChange({ venue })} />
       <Field label="Sala / lugar (opcional)">
         <input className="input" value={value.place} onChange={(e) => onChange({ place: e.target.value })} placeholder={value.venue === 'live' ? 'Casino, club…' : 'PokerStars, GGPoker…'} />
       </Field>
 
-      <Field label={value.gameType === 'cash' ? 'Nivel (NL) — buy-in de 100 ciegas, en €' : 'ABI del torneo (€)'}>
-        <input className="input" inputMode="decimal" value={value.stake} onChange={(e) => onChange({ stake: e.target.value })} placeholder={advice.current ? String(advice.current) : ''} />
-      </Field>
-      <div className="chips" aria-label="Niveles">
+      {isTournament && (
+        <Field label="Nombre del torneo (opcional)">
+          <input className="input" value={value.tournamentName} onChange={(e) => onChange({ tournamentName: e.target.value })} placeholder="Sunday Million, Turbo del jueves…" />
+        </Field>
+      )}
+
+      {!isTournament && (
+        <Field label="Nivel (NL) — buy-in de 100 ciegas, en €">
+          <input className="input" inputMode="decimal" value={value.stake} onChange={(e) => onChange({ stake: e.target.value })} placeholder={advice.current ? String(advice.current) : ''} />
+        </Field>
+      )}
+      <div className="chips" aria-label={isTournament ? 'Buy-ins habituales' : 'Niveles'}>
         {rule.ladder.map((l) => (
-          <button key={l} type="button" className="chip" aria-pressed={stakeNum === l} onClick={() => onChange({ stake: String(l) })}>
-            {value.gameType === 'cash' ? `NL${l}` : eur(l)}
+          <button
+            key={l}
+            type="button"
+            className="chip"
+            aria-pressed={stakeNum === l}
+            onClick={() => onChange(isTournament ? { buyIn: String(l) } : { stake: String(l) })}
+          >
+            {isTournament ? eur(l) : `NL${l}`}
           </button>
         ))}
       </div>
@@ -94,11 +122,17 @@ function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<
       )}
       {over && needed != null && (
         <div className="notice">
-          Estás por encima de tu gestión: este nivel pide al menos {eur(needed)} ({rule.buyins} buy-ins) y tienes {eur(balance)}.
+          Estás por encima de tu gestión: {isTournament ? 'este buy-in' : 'este nivel'} pide al menos {eur(needed)} ({rule.buyins} {isTournament ? 'ABIs' : 'buy-ins'}) y tienes {eur(balance)}.
         </div>
       )}
       <Field label="Buy-in inicial (€)">
-        <input className="input" inputMode="decimal" value={value.buyIn} onChange={(e) => onChange({ buyIn: e.target.value })} placeholder={value.stake || '0'} />
+        <input
+          className="input"
+          inputMode="decimal"
+          value={value.buyIn}
+          onChange={(e) => onChange({ buyIn: e.target.value })}
+          placeholder={isTournament ? (advice.recommended != null ? String(advice.recommended) : '0') : value.stake || '0'}
+        />
       </Field>
     </div>
   );
@@ -147,7 +181,10 @@ function SessionEditor({
 
   async function save() {
     const co = parseNum(cashOut);
-    const bi = manual ? parseNum(setup.buyIn) : parseNum(buyInTotal);
+    const resolved = resolveSetup(setup);
+    const bi = manual ? resolved.buyIn : parseNum(buyInTotal);
+    // Al cerrar una sesión en curso, el nivel viene de la sesión (buyInTotal incluye recompras).
+    const stake = manual ? resolved.stake : parseNum(setup.stake);
     const dur = parseNum(durationMin);
     if (co == null || co < 0) return setErr('Indica cuánto te llevas (cash-out), 0 si has perdido todo.');
     if (bi == null || bi <= 0) return setErr('Indica el buy-in total (mayor que 0).');
@@ -164,7 +201,8 @@ function SessionEditor({
       game_type: setup.gameType,
       venue: setup.venue,
       place: setup.place.trim() || null,
-      stake: parseNum(setup.stake),
+      tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() || null : null,
+      stake,
       buy_in: bi,
       cash_out: co,
       entries: base.entries,
@@ -269,7 +307,7 @@ export default function SessionPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const firstBank = d.banks.find((b) => !b.archived);
-  const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', stake: '', buyIn: '' });
+  const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', tournamentName: '', stake: '', buyIn: '' });
 
   useEffect(() => {
     setActive(loadActive());
@@ -309,10 +347,9 @@ export default function SessionPage() {
   }
 
   function start() {
-    const stake = parseNum(setup.stake);
-    const buyIn = parseNum(setup.buyIn) ?? stake;
+    const { stake, buyIn } = resolveSetup(setup);
     if (!setup.bankId) return setErr('Elige una bolsa.');
-    if (buyIn == null || buyIn <= 0) return setErr('Indica el nivel o el buy-in inicial.');
+    if (buyIn == null || buyIn <= 0) return setErr(setup.gameType === 'tournament' ? 'Indica el buy-in inicial.' : 'Indica el nivel o el buy-in inicial.');
     setErr(null);
     update({
       id: uuid(),
@@ -320,6 +357,7 @@ export default function SessionPage() {
       game_type: setup.gameType,
       venue: setup.venue,
       place: setup.place.trim(),
+      tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() : '',
       stake,
       buy_in: buyIn,
       entries: 1,
@@ -339,6 +377,7 @@ export default function SessionPage() {
       game_type: p.game_type,
       venue: p.venue,
       place: p.place ?? '',
+      tournament_name: p.tournament_name ?? '',
       stake: p.stake,
       buy_in: buyIn,
       entries: 1,
@@ -349,8 +388,7 @@ export default function SessionPage() {
   }
 
   async function saveAsPreset() {
-    const stake = parseNum(setup.stake);
-    const buyIn = parseNum(setup.buyIn) ?? stake;
+    const { stake, buyIn } = resolveSetup(setup);
     if (!presetName.trim()) return setPresetMsg('Ponle un nombre al preset.');
     if (!setup.bankId) return setPresetMsg('Elige una bolsa.');
     if (buyIn == null || buyIn <= 0) return setPresetMsg('Indica el nivel o el buy-in antes de guardarlo.');
@@ -360,6 +398,7 @@ export default function SessionPage() {
       game_type: setup.gameType,
       venue: setup.venue,
       place: setup.place.trim() || null,
+      tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() || null : null,
       stake,
       buy_in: buyIn,
     });
@@ -381,6 +420,7 @@ export default function SessionPage() {
               gameType: active.game_type,
               venue: active.venue,
               place: active.place,
+              tournamentName: active.tournament_name ?? '',
               stake: active.stake != null ? String(active.stake) : '',
               buyIn: String(active.buy_in),
             },
@@ -426,7 +466,8 @@ export default function SessionPage() {
           <div className={`timer ${paused ? 'paused' : ''}`}>{hms(secs)}</div>
           <p className="muted small" style={{ textAlign: 'center' }}>
             {active.game_type === 'cash' ? 'Cash' : 'Torneo'} {active.venue === 'live' ? 'live' : 'online'}
-            {active.stake != null && ` · ${stakeLabel(active.game_type, active.stake)}`}
+            {active.game_type === 'cash' && active.stake != null && ` · ${stakeLabel('cash', active.stake)}`}
+            {active.game_type === 'tournament' && active.tournament_name && ` · ${active.tournament_name}`}
             {active.place && ` · ${active.place}`}
             {bankName && d.banks.length > 1 && ` · ${bankName}`}
           </p>
@@ -437,7 +478,7 @@ export default function SessionPage() {
             </div>
             <div className="stat">
               <div className="k">{active.game_type === 'tournament' ? 'Entradas' : 'Recompras'}</div>
-              <div className="v num">{active.entries}</div>
+              <div className="v num">{active.game_type === 'tournament' ? active.entries : active.entries - 1}</div>
             </div>
           </div>
           <div className="row">

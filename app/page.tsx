@@ -8,6 +8,7 @@ import { eur, hoursLabel, monthKey, monthLabel, monthRange, pct, signedEur } fro
 import BankChart from '@/components/BankChart';
 import BankFilter from '@/components/BankFilter';
 import SessionRow from '@/components/SessionRow';
+import TournamentStats from '@/components/TournamentStats';
 import { Card, Field, Stat, parseNum, tone } from '@/components/ui';
 
 function FirstBank() {
@@ -149,6 +150,8 @@ export default function Dashboard() {
           </p>
         )}
       </Card>
+
+      <TournamentStats sessions={periodSessions} title={period === 'all' ? 'Torneos' : `Torneos · ${monthLabel(period)}`} />
 
       {moods.length > 0 && (
         <Card title="€/hora según tu estado mental">
