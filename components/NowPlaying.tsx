@@ -10,6 +10,7 @@ import { eur, hms } from '@/lib/format';
 import type { ActiveSession } from '@/lib/types';
 import { Card, parseNum } from './ui';
 import { activeSub } from './SessionRow';
+import QuickNotes from './QuickNotes';
 
 function Flame() {
   return (
@@ -169,6 +170,7 @@ export default function NowPlaying() {
                 </button>
               </div>
             )}
+            <QuickNotes a={a} onChange={update} />
             <Link href={`/session?id=${a.id}`} className="small muted">
               Abrir sesión completa
             </Link>

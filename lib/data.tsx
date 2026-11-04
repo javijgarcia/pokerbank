@@ -77,6 +77,14 @@ export function useData(): DataCtx {
 
 const errMsg = (e: { message: string } | null | undefined): string | null => (e ? e.message : null);
 
+const BOUNTY_KEYS = ['has_bounty', 'bounty_total', 'bounty_count'];
+
+function stripKeys(row: object, keys: string[]): Record<string, unknown> {
+  const copy: Record<string, unknown> = { ...row };
+  for (const k of keys) delete copy[k];
+  return copy;
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -168,10 +176,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const rows = q.map(({ _uid, ...row }) => ({ ...row, user_id: _uid }));
       let { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
+      // Si faltan migraciones, guardamos la sesión sin las columnas nuevas para no perderla.
+      if (error && /has_bounty|bounty_total|bounty_count/.test(error.message)) {
+        ({ error } = await supabase.from('sessions').upsert(rows.map((r) => stripKeys(r, BOUNTY_KEYS)), { onConflict: 'id' }));
+      }
       if (error && /tournament_name/.test(error.message)) {
-        // La migración 003 aún no se ha ejecutado: guardamos la sesión sin el nombre para no perderla.
-        const legacy = rows.map(({ tournament_name: _t, ...row }) => row);
-        ({ error } = await supabase.from('sessions').upsert(legacy, { onConflict: 'id' }));
+        ({ error } = await supabase
+          .from('sessions')
+          .upsert(rows.map((r) => stripKeys(r, [...BOUNTY_KEYS, 'tournament_name'])), { onConflict: 'id' }));
       }
       if (error) throw new Error(error.message);
       const synced = new Set(q.map((x) => x.id));
@@ -368,9 +380,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async (p: Omit<Preset, 'id'>) => {
       if (!supabase) return 'Sin conexión';
       let { error } = await supabase.from('presets').insert(p);
+      if (error && /has_bounty/.test(error.message)) {
+        ({ error } = await supabase.from('presets').insert(stripKeys(p, ['has_bounty'])));
+      }
       if (error && /tournament_name/.test(error.message)) {
-        const { tournament_name: _t, ...legacy } = p;
-        ({ error } = await supabase.from('presets').insert(legacy));
+        ({ error } = await supabase.from('presets').insert(stripKeys(p, ['has_bounty', 'tournament_name'])));
       }
       await refresh();
       return errMsg(error);

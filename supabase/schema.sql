@@ -34,6 +34,9 @@ create table if not exists public.sessions (
   venue            text not null check (venue in ('live', 'online')),
   place            text,
   tournament_name  text,                     -- solo torneos
+  has_bounty       boolean not null default false,       -- torneo KO / con bounty
+  bounty_total     numeric(12,2) not null default 0,     -- bounties ganados (incluidos en cash_out)
+  bounty_count     int not null default 0,               -- eliminaciones con bounty
   stake            numeric(12,2),            -- cash: nivel (NL5 = 5); torneo: buy-in inicial (= ABI)
   buy_in           numeric(12,2) not null,   -- total invertido (incluye recompras / re-entries)
   cash_out         numeric(12,2) not null default 0,
@@ -89,6 +92,7 @@ create table if not exists public.presets (
   venue      text not null check (venue in ('live', 'online')),
   place      text,
   tournament_name text,
+  has_bounty boolean not null default false,
   stake      numeric(12,2),
   buy_in     numeric(12,2),
   created_at timestamptz not null default now()

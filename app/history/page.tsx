@@ -48,10 +48,10 @@ export default function HistoryPage() {
   }
 
   function exportCsv() {
-    const head = ['fecha_inicio', 'fecha_fin', 'bolsa', 'tipo', 'modalidad', 'lugar', 'nombre_torneo', 'nivel', 'buy_in', 'cash_out', 'resultado', 'minutos', 'animo', 'juego', 'notas', 'etiquetas'];
+    const head = ['fecha_inicio', 'fecha_fin', 'bolsa', 'tipo', 'modalidad', 'lugar', 'nombre_torneo', 'nivel', 'buy_in', 'cash_out', 'bounties', 'eliminaciones', 'resultado', 'minutos', 'animo', 'juego', 'notas', 'etiquetas'];
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = list.map((s) =>
-      [s.started_at, s.ended_at, bankName(s.bank_id), s.game_type, s.venue, s.place, s.tournament_name, s.stake, s.buy_in, s.cash_out, s.cash_out - s.buy_in, Math.round(s.duration_seconds / 60), s.mood, s.play_quality, s.notes, s.tags.join('|')]
+      [s.started_at, s.ended_at, bankName(s.bank_id), s.game_type, s.venue, s.place, s.tournament_name, s.stake, s.buy_in, s.cash_out, s.bounty_total ?? 0, s.bounty_count ?? 0, s.cash_out - s.buy_in, Math.round(s.duration_seconds / 60), s.mood, s.play_quality, s.notes, s.tags.join('|')]
         .map(esc)
         .join(',')
     );

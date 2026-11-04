@@ -24,6 +24,9 @@ export interface Session {
   venue: Venue;
   place: string | null;
   tournament_name?: string | null; // solo torneos; ausente en sesiones antiguas
+  has_bounty?: boolean; // torneo KO / con bounty
+  bounty_total?: number; // bounties ganados (ya incluidos en cash_out); el premio es cash_out - bounty_total
+  bounty_count?: number; // eliminaciones con bounty
   stake: number | null; // cash: nivel (NL); torneo: buy-in inicial (= ABI)
   buy_in: number;
   cash_out: number;
@@ -65,6 +68,7 @@ export interface Preset {
   venue: Venue;
   place: string | null;
   tournament_name?: string | null;
+  has_bounty?: boolean;
   stake: number | null;
   buy_in: number | null;
 }
@@ -77,6 +81,9 @@ export interface ActiveSession {
   venue: Venue;
   place: string;
   tournament_name?: string; // ausente en sesiones iniciadas con versiones anteriores
+  has_bounty?: boolean;
+  bounties?: number[]; // importe de cada eliminación, en orden
+  outcome?: 'bust' | 'win' | null; // nota rápida: busteado / ganado
   stake: number | null;
   buy_in: number; // total invertido hasta ahora
   entries: number;

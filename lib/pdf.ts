@@ -48,6 +48,10 @@ export async function downloadSessionPdf(s: Session, bankName: string): Promise<
     ['Entradas / recompras', String(s.entries)],
     ['Cash-out / premio', eurPdf(s.cash_out)],
   ];
+  if (s.game_type === 'tournament' && (s.bounty_total ?? 0) > 0) {
+    rows.push(['Premio sin bounties', eurPdf(s.cash_out - (s.bounty_total ?? 0))]);
+    rows.push(['Bounties', `${eurPdf(s.bounty_total ?? 0)} (${s.bounty_count ?? 0} eliminaciones)`]);
+  }
   if (s.game_type === 'tournament' && s.position != null) {
     rows.push(['Puesto', s.players ? `${s.position} de ${s.players}` : String(s.position)]);
   }

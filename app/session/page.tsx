@@ -5,11 +5,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useData } from '@/lib/data';
 import { levelAdvice, lastStakeFor, bankBalance } from '@/lib/calc';
 import { eur, hms, uuid } from '@/lib/format';
-import { activeFromPreset, activeTitle } from '@/lib/active';
+import { activeFromPreset, activeTitle, bountySum } from '@/lib/active';
 import { elapsedSeconds, loadActives, pauseActive, removeActive, resumeActive, upsertActive } from '@/lib/local';
 import { DEFAULT_BUYINS, DEFAULT_LADDER, type ActiveSession, type GameType, type LevelRule, type Preset, type Session, type Venue } from '@/lib/types';
 import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
 import { activeSub, stakeLabel } from '@/components/SessionRow';
+import QuickNotes from '@/components/QuickNotes';
 
 interface Setup {
   bankId: string;
@@ -17,6 +18,7 @@ interface Setup {
   venue: Venue;
   place: string;
   tournamentName: string;
+  bounty: boolean;
   stake: string;
   buyIn: string;
 }
@@ -77,16 +79,22 @@ function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<
           </select>
         </Field>
       )}
-      <Segmented value={value.gameType} options={GAME_OPTS} onChange={(gameType) => onChange({ gameType, stake: '', buyIn: '', tournamentName: '' })} />
+      <Segmented value={value.gameType} options={GAME_OPTS} onChange={(gameType) => onChange({ gameType, stake: '', buyIn: '', tournamentName: '', bounty: false })} />
       <Segmented value={value.venue} options={VENUE_OPTS} onChange={(venue) => onChange({ venue })} />
       <Field label="Sala / lugar (opcional)">
         <input className="input" value={value.place} onChange={(e) => onChange({ place: e.target.value })} placeholder={value.venue === 'live' ? 'Casino, club…' : 'PokerStars, GGPoker…'} />
       </Field>
 
       {isTournament && (
-        <Field label="Nombre del torneo (opcional)">
-          <input className="input" value={value.tournamentName} onChange={(e) => onChange({ tournamentName: e.target.value })} placeholder="Sunday Million, Turbo del jueves…" />
-        </Field>
+        <>
+          <Field label="Nombre del torneo (opcional)">
+            <input className="input" value={value.tournamentName} onChange={(e) => onChange({ tournamentName: e.target.value })} placeholder="Sunday Million, Turbo del jueves…" />
+          </Field>
+          <label className="row small" style={{ gap: 10 }}>
+            <input type="checkbox" checked={value.bounty} onChange={(e) => onChange({ bounty: e.target.checked })} />
+            Torneo con bounty (KO)
+          </label>
+        </>
       )}
 
       {!isTournament && (
@@ -141,6 +149,9 @@ interface EditorBase {
   startedAt: number;
   endedAt: number;
   durationMin: string;
+  bountyAmount?: string; // bounties apuntados durante la sesión
+  bountyCount?: number;
+  outcome?: 'bust' | 'win' | null;
 }
 
 function SessionEditor({
@@ -164,23 +175,31 @@ function SessionEditor({
     dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
     return dt.toISOString().slice(0, 16);
   });
-  const [position, setPosition] = useState('');
+  const [position, setPosition] = useState(base.outcome === 'win' ? '1' : '');
   const [players, setPlayers] = useState('');
+  const [bountyAmt, setBountyAmt] = useState(base.bountyAmount ?? '');
+  const [bountyCnt, setBountyCnt] = useState(base.bountyCount ? String(base.bountyCount) : '');
   const [mood, setMood] = useState<number | null>(null);
   const [play, setPlay] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState(base.outcome === 'win' ? 'ganado' : base.outcome === 'bust' ? 'busteado' : '');
+  const isT = setup.gameType === 'tournament';
+  const hasBounty = isT && setup.bounty;
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function save() {
-    const co = parseNum(cashOut);
+    const prize = parseNum(cashOut);
+    const bAmt = hasBounty ? parseNum(bountyAmt) ?? 0 : 0;
+    const bCnt = hasBounty ? Math.round(parseNum(bountyCnt) ?? 0) : 0;
+    if (bAmt < 0 || bCnt < 0) return setErr('Los bounties no pueden ser negativos.');
+    const co = prize == null ? null : Math.round((prize + bAmt) * 100) / 100; // cash_out = premio + bounties
     const resolved = resolveSetup(setup);
     const bi = manual ? resolved.buyIn : parseNum(buyInTotal);
     // Al cerrar una sesión en curso, el nivel viene de la sesión (buyInTotal incluye recompras).
     const stake = manual ? resolved.stake : parseNum(setup.stake);
     const dur = parseNum(durationMin);
-    if (co == null || co < 0) return setErr('Indica cuánto te llevas (cash-out), 0 si has perdido todo.');
+    if (co == null || prize == null || prize < 0) return setErr(isT ? 'Indica el premio (sin bounties), 0 si no has cobrado.' : 'Indica cuánto te llevas (cash-out), 0 si has perdido todo.');
     if (bi == null || bi <= 0) return setErr('Indica el buy-in total (mayor que 0).');
     if (dur == null || dur < 0) return setErr('Indica una duración válida en minutos.');
     if (!setup.bankId) return setErr('Elige una bolsa.');
@@ -196,6 +215,9 @@ function SessionEditor({
       venue: setup.venue,
       place: setup.place.trim() || null,
       tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() || null : null,
+      has_bounty: hasBounty,
+      bounty_total: bAmt,
+      bounty_count: bCnt,
       stake,
       buy_in: bi,
       cash_out: co,
@@ -236,9 +258,24 @@ function SessionEditor({
             <input className="input" inputMode="decimal" value={buyInTotal} onChange={(e) => setBuyInTotal(e.target.value)} />
           </Field>
         )}
-        <Field label="Cash-out / premio (€)">
+        <Field label={isT ? (hasBounty ? 'Premio, sin contar bounties (€)' : 'Premio (€)') : 'Cash-out (€)'}>
           <input className="input" inputMode="decimal" autoFocus={!manual} value={cashOut} onChange={(e) => setCashOut(e.target.value)} placeholder="0" />
         </Field>
+        {isT && <p className="tiny muted">Si el premio es mayor que 0 cuenta como ITM en tus estadísticas (los bounties no cuentan para el ITM).</p>}
+        {hasBounty && (
+          <div className="row">
+            <div className="grow">
+              <Field label="Bounties ganados (€)">
+                <input className="input" inputMode="decimal" value={bountyAmt} onChange={(e) => setBountyAmt(e.target.value)} placeholder="0" />
+              </Field>
+            </div>
+            <div className="grow">
+              <Field label="Eliminaciones">
+                <input className="input" inputMode="numeric" value={bountyCnt} onChange={(e) => setBountyCnt(e.target.value)} placeholder="0" />
+              </Field>
+            </div>
+          </div>
+        )}
         <Field label="Duración (minutos)">
           <input className="input" inputMode="numeric" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
         </Field>
@@ -303,7 +340,7 @@ export default function SessionPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const firstBank = d.banks.find((b) => !b.archived);
-  const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', tournamentName: '', stake: '', buyIn: '' });
+  const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', tournamentName: '', bounty: false, stake: '', buyIn: '' });
 
   // Sesión que se está viendo: la elegida, o la única abierta si no se pidió empezar otra.
   const active = actives.find((a) => a.id === selectedId) ?? (!startNew && actives.length === 1 ? actives[0] : null);
@@ -330,7 +367,7 @@ export default function SessionPage() {
       setSelectedId(idParam);
     } else if (type === 'cash' || type === 'tournament') {
       setStartNew(true);
-      setSetup((s) => ({ ...s, gameType: type, stake: '', buyIn: '', tournamentName: '' }));
+      setSetup((s) => ({ ...s, gameType: type, stake: '', buyIn: '', tournamentName: '', bounty: false }));
     }
     setLoaded(true);
   }, []);
@@ -389,6 +426,8 @@ export default function SessionPage() {
       venue: setup.venue,
       place: setup.place.trim(),
       tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() : '',
+      has_bounty: setup.gameType === 'tournament' && setup.bounty,
+      bounties: [],
       stake,
       buy_in: buyIn,
       entries: 1,
@@ -417,6 +456,7 @@ export default function SessionPage() {
       venue: setup.venue,
       place: setup.place.trim() || null,
       tournament_name: setup.gameType === 'tournament' ? setup.tournamentName.trim() || null : null,
+      has_bounty: setup.gameType === 'tournament' && setup.bounty,
       stake,
       buy_in: buyIn,
     });
@@ -439,9 +479,13 @@ export default function SessionPage() {
               venue: active.venue,
               place: active.place,
               tournamentName: active.tournament_name ?? '',
+              bounty: !!active.has_bounty,
               stake: active.stake != null ? String(active.stake) : '',
               buyIn: String(active.buy_in),
             },
+            bountyAmount: bountySum(active) > 0 ? String(bountySum(active)) : '',
+            bountyCount: (active.bounties ?? []).length,
+            outcome: active.outcome ?? null,
             buyInTotal: String(active.buy_in),
             entries: active.entries,
             startedAt: active.started_at,
@@ -499,6 +543,7 @@ export default function SessionPage() {
               <div className="v num">{active.game_type === 'tournament' ? active.entries : active.entries - 1}</div>
             </div>
           </div>
+          <QuickNotes a={active} onChange={update} />
           <div className="row">
             <button className="btn grow" onClick={() => update(paused ? resumeActive(active) : pauseActive(active))}>
               {paused ? 'Reanudar' : 'Pausar'}

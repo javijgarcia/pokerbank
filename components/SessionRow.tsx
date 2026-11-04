@@ -51,6 +51,7 @@ export default function SessionRow({
           {s.mood != null && ` · ánimo ${s.mood}/5`}
           {s.play_quality != null && ` · juego ${s.play_quality}/5`}
           {s.game_type === 'tournament' && s.position != null && ` · puesto ${s.position}${s.players ? '/' + s.players : ''}`}
+          {s.game_type === 'tournament' && (s.bounty_total ?? 0) > 0 && ` · bounties ${eur(s.bounty_total ?? 0)} (${s.bounty_count ?? 0} KO)`}
         </div>
         {s.notes && <div className="tiny muted" style={{ marginTop: 2 }}>{s.notes}</div>}
       </div>

@@ -6,11 +6,12 @@
 - **v0.2.1**: torneos sin campo ABI (el buy-in inicial es el ABI), nombre del torneo, estadísticas de torneos con ABI medio. (Migración `003_tournament_name.sql`)
 - **v0.3**: Inicio con tarjetas de saldo y «Jugando ahora»; pestaña Estadísticas con Todo/Cash/Torneos y filtro Semana/Mes/Año/General.
 - **v0.4**: varias sesiones abiertas a la vez, y racha de días jugando (llama). Sin migración de base de datos.
+- **v0.5**: torneos con bounty (KO): interruptor al crear el torneo, «+ Bounty» y notas rápidas (Busteado / Ganado) en Inicio, premio sin bounties + bounties + eliminaciones al cerrar; ITM solo con el premio; estadísticas de bounties. **Requiere migración `supabase/migrations/004_bounties.sql`** (y la 003 si no la ejecutaste).
 
 ## Propuesta (el orden lo decides tú)
-- **v0.5**: recibos (foto adjunta a la sesión) y calendario de torneos (alta manual + exportar a tu calendario).
-- **v0.6**: varias divisas con conversión.
-- **v0.7**: historial de manos (nivel de detalle por decidir).
+- **v0.8**: recibos (foto adjunta a la sesión) y calendario de torneos (alta manual + exportar a tu calendario).
+- **v0.9**: varias divisas con conversión.
+- **v1.0**: historial de manos (nivel de detalle por decidir).
 
 ## Aparcado
 - Social y staking (no aportan con un solo usuario).

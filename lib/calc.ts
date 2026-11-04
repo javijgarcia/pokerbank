@@ -125,6 +125,8 @@ export function profitSeries(list: Session[], range?: { from: number; to: number
 // ───────────────────────────── Estadísticas ─────────────────────────────
 
 export interface Stats {
+  bountyTotal: number; // bounties ganados (incluidos en el resultado)
+  bountyCount: number; // eliminaciones con bounty
   entries: number; // buy-ins totales (entradas, recompras y re-entries incluidos)
   avgProfit: number; // resultado medio por sesión
   avgProfitPerEntry: number;
@@ -154,6 +156,8 @@ export function computeStats(list: Session[]): Stats {
   let tEntries = 0;
   let bestCash = 0;
   let entriesTotal = 0;
+  let bountyTotal = 0;
+  let bountyCount = 0;
   let roiSum = 0;
   let roiN = 0;
   let moodSum = 0;
@@ -173,7 +177,10 @@ export function computeStats(list: Session[]): Stats {
         roiN++;
       }
       tCount++;
-      if (s.cash_out > 0) tItm++;
+      // ITM: se está en premios si el premio (sin contar bounties) es mayor que 0.
+      bountyTotal += s.bounty_total ?? 0;
+      bountyCount += s.bounty_count ?? 0;
+      if (s.cash_out - (s.bounty_total ?? 0) > 0.004) tItm++;
       tInvested += s.buy_in;
       tEntries += Math.max(1, s.entries);
       bestCash = Math.max(bestCash, s.cash_out);
@@ -189,6 +196,8 @@ export function computeStats(list: Session[]): Stats {
   }
   const hours = seconds / 3600;
   return {
+    bountyTotal: round2(bountyTotal),
+    bountyCount,
     entries: entriesTotal,
     avgProfit: list.length ? round2(profit / list.length) : 0,
     avgProfitPerEntry: entriesTotal ? round2(profit / entriesTotal) : 0,

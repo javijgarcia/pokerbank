@@ -19,8 +19,10 @@ export default function TournamentStats({ sessions, title = 'Torneos' }: { sessi
         <Stat label="ROI" value={pct(st.roi, 1)} className={tone(st.roi)} />
         <Stat label="Resultado" value={signedEur(st.profit)} className={tone(st.profit)} />
         <Stat label="Mejor premio" value={eur(st.bestCash)} />
+        {st.bountyCount > 0 && <Stat label="Bounties ganados" value={eur(st.bountyTotal)} />}
+        {st.bountyCount > 0 && <Stat label="Eliminaciones" value={String(st.bountyCount)} />}
       </div>
-      <p className="tiny muted">ABI medio = buy-in total invertido entre el número de entradas (re-entries incluidos).</p>
+      <p className="tiny muted">ABI medio = buy-in total invertido entre el número de entradas (re-entries incluidos). ITM = torneos con premio mayor que 0, sin contar bounties.</p>
     </Card>
   );
 }

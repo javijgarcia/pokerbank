@@ -110,6 +110,8 @@ export default function StatsPage() {
           <Box label="Beneficio medio por entrada" value={signedEur(stats.avgProfitPerEntry)} className={tone(stats.avgProfitPerEntry)} />
           <Box label="ABI medio" value={stats.abi == null ? '—' : eur(stats.abi)} />
           <Box label="Mejor premio" value={eur(stats.bestCash)} />
+          {stats.bountyCount > 0 && <Box label="Bounties ganados" value={eur(stats.bountyTotal)} />}
+          {stats.bountyCount > 0 && <Box label="Eliminaciones" value={String(stats.bountyCount)} />}
           <Box label="€/hora" value={signedEur(stats.perHour)} className={tone(stats.perHour)} />
         </div>
       ) : (
