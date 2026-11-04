@@ -2,8 +2,8 @@
    - Navegación: red primero, caché como respaldo.
    - Estáticos de Next (/_next/static) e iconos: caché primero.
    - Peticiones a otros orígenes (Supabase) no se tocan. */
-const CACHE = 'pokerbank-v1';
-const SHELL = ['/', '/session', '/history', '/goals', '/settings', '/manifest.webmanifest', '/icons/icon-192.png'];
+const CACHE = 'pokerbank-v2';
+const SHELL = ['/', '/session', '/stats', '/history', '/goals', '/settings', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

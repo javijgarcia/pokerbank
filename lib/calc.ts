@@ -37,7 +37,7 @@ export function balanceSeries(
   banks: Bank[],
   movements: Movement[],
   sessions: Session[],
-  range?: { from: number; to: number }
+  range?: { from: number; to: number } | null
 ): Series {
   const ids = new Set(banks.map((b) => b.id));
   const base = banks.reduce((a, b) => a + Number(b.initial_amount), 0);
@@ -90,9 +90,45 @@ export function balanceSeries(
   return { points, start, end: points.length ? points[points.length - 1].v : start };
 }
 
+/** Beneficio acumulado de las sesiones (sin ingresos ni retiradas), empezando en 0 al inicio del periodo. */
+export function profitSeries(list: Session[], range?: { from: number; to: number } | null): Series {
+  const evs = list
+    .map((s) => ({ t: new Date(s.ended_at).getTime(), s }))
+    .filter((e) => !range || (e.t >= range.from && e.t < range.to))
+    .sort((a, b) => a.t - b.t);
+  if (evs.length === 0) return { points: [], start: 0, end: 0 };
+
+  const points: Point[] = [];
+  let run = 0;
+  if (range) points.push({ t: range.from, v: 0, label: 'Inicio del periodo', delta: 0 });
+  else points.push({ t: evs[0].t - 60_000, v: 0, label: 'Inicio', delta: 0 });
+  for (const e of evs) {
+    const r = sessionResult(e.s);
+    run += r;
+    const name = e.s.game_type === 'tournament' && e.s.tournament_name ? e.s.tournament_name : null;
+    points.push({
+      t: e.t,
+      v: round2(run),
+      label:
+        name ?? `${e.s.game_type === 'cash' ? 'Cash' : 'Torneo'} ${e.s.venue === 'live' ? 'live' : 'online'}${e.s.place ? ' · ' + e.s.place : ''}`,
+      delta: round2(r),
+    });
+  }
+  if (range) {
+    const endT = Math.min(Date.now(), range.to - 1);
+    const last = points[points.length - 1];
+    if (endT > last.t) points.push({ t: endT, v: last.v, label: 'Ahora', delta: 0 });
+  }
+  return { points, start: 0, end: points[points.length - 1].v };
+}
+
 // ───────────────────────────── Estadísticas ─────────────────────────────
 
 export interface Stats {
+  entries: number; // buy-ins totales (entradas, recompras y re-entries incluidos)
+  avgProfit: number; // resultado medio por sesión
+  avgProfitPerEntry: number;
+  avgRoiTournament: number | null; // media del ROI de cada torneo, en %
   count: number;
   profit: number;
   seconds: number;
@@ -117,6 +153,9 @@ export function computeStats(list: Session[]): Stats {
   let tInvested = 0;
   let tEntries = 0;
   let bestCash = 0;
+  let entriesTotal = 0;
+  let roiSum = 0;
+  let roiN = 0;
   let moodSum = 0;
   let moodN = 0;
   let playSum = 0;
@@ -127,7 +166,12 @@ export function computeStats(list: Session[]): Stats {
     seconds += s.duration_seconds;
     invested += s.buy_in;
     if (r > 0) wins++;
+    entriesTotal += Math.max(1, s.entries);
     if (s.game_type === 'tournament') {
+      if (s.buy_in > 0) {
+        roiSum += (r / s.buy_in) * 100;
+        roiN++;
+      }
       tCount++;
       if (s.cash_out > 0) tItm++;
       tInvested += s.buy_in;
@@ -145,6 +189,10 @@ export function computeStats(list: Session[]): Stats {
   }
   const hours = seconds / 3600;
   return {
+    entries: entriesTotal,
+    avgProfit: list.length ? round2(profit / list.length) : 0,
+    avgProfitPerEntry: entriesTotal ? round2(profit / entriesTotal) : 0,
+    avgRoiTournament: roiN ? roiSum / roiN : null,
     count: list.length,
     profit: round2(profit),
     seconds,

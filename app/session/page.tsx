@@ -310,7 +310,18 @@ export default function SessionPage() {
   const [setup, setSetup] = useState<Setup>({ bankId: '', gameType: 'cash', venue: 'online', place: '', tournamentName: '', stake: '', buyIn: '' });
 
   useEffect(() => {
-    setActive(loadActive());
+    const a = loadActive();
+    setActive(a);
+    // Enlaces desde Inicio: /session?close=1 abre el cierre; /session?type=cash|tournament preselecciona el tipo.
+    const q = new URLSearchParams(window.location.search);
+    if (a && q.get('close') === '1') {
+      setCloseAt(a.paused_at ?? Date.now());
+      setView('close');
+    }
+    const type = q.get('type');
+    if (!a && (type === 'cash' || type === 'tournament')) {
+      setSetup((s) => ({ ...s, gameType: type, stake: '', buyIn: '', tournamentName: '' }));
+    }
     setLoaded(true);
   }, []);
 

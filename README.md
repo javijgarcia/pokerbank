@@ -1,4 +1,4 @@
-# PokerBank v0.2.1
+# PokerBank v0.3
 
 PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel. Multiusuario (RLS).
 
@@ -13,6 +13,8 @@ PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel
 5. Despliegue: importa el repo en Vercel y define las dos variables de entorno.
 
 ## Qué incluye
+- Inicio: tarjetas de saldo por bolsa (con botón para ocultar el saldo), «Jugando ahora» con pausa, entradas/recompras y cierre rápidos, presets de un toque e historial reciente.
+- Estadísticas: pestañas Todo / Cash / Torneos, gráfico de beneficio o de bankroll y filtro Semana / Mes / Año / General con navegación al periodo anterior.
 - Sesiones cash/torneo, live/online (en torneos: nombre del torneo y buy-in inicial; el ABI se calcula en las estadísticas), con temporizador (hora de inicio + pausas, sobrevive a bloquear el móvil).
 - Recompras / re-entries durante la sesión; cierre con cash-out, estado mental 1-5, calidad de juego 1-5, notas y etiquetas.
 - Registro manual de sesiones ya jugadas.

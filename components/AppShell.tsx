@@ -11,7 +11,7 @@ import AuthForm from './AuthForm';
 
 const NAV = [
   { href: '/', label: 'Inicio', d: 'M3 11l9-8 9 8M5 10v10h14V10' },
-  { href: '/session', label: 'Sesión', d: 'M12 6v6l4 2M12 21a9 9 0 100-18 9 9 0 000 18z' },
+  { href: '/stats', label: 'Estadísticas', d: 'M5 20V11M12 20V4M19 20v-6' },
   { href: '/history', label: 'Historial', d: 'M4 6h16M4 12h16M4 18h10' },
   { href: '/goals', label: 'Objetivos', d: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 16a4 4 0 100-8 4 4 0 000 8zM12 12h.01' },
   { href: '/settings', label: 'Ajustes', d: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4' },
@@ -32,7 +32,8 @@ function ActivePill() {
     return () => clearInterval(t);
   }, []);
 
-  if (!active || pathname === '/session') return null;
+  // En Inicio la sesión en curso ya se ve en "Jugando ahora"; en /session está la propia pantalla.
+  if (!active || pathname === '/session' || pathname === '/') return null;
   const paused = active.paused_at != null;
   return (
     <Link href="/session" className={`pill ${paused ? 'paused' : ''}`}>
