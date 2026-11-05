@@ -7,6 +7,7 @@ import { applyTheme, type ThemePref } from '@/lib/theme';
 import { bankBalance } from '@/lib/calc';
 import { dateLabel, eur, signedEur } from '@/lib/format';
 import { Card, Field, Segmented, parseNum, tone } from '@/components/ui';
+import AccountCards from '@/components/AccountCards';
 import { DEFAULT_BUYINS, DEFAULT_LADDER, type Bank, type GameType, type LevelRule } from '@/lib/types';
 
 function RuleEditor({ bank, gameType }: { bank: Bank; gameType: GameType }) {
@@ -271,6 +272,8 @@ export default function SettingsPage() {
       </Card>
 
       <ThemeCard />
+
+      <AccountCards />
 
       <Card title="Cuenta">
         <p className="small muted">{d.user?.email}</p>

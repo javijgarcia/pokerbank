@@ -103,3 +103,14 @@ export function saveCache(uid: string, data: unknown): void {
 
 export const loadPref = <T,>(key: string, fallback: T): T => read<T>(`pb.pref.${key}`, fallback);
 export const savePref = (key: string, value: unknown): void => write(`pb.pref.${key}`, value);
+
+/** Borra todo lo que PokerBank guarda en este dispositivo (sesiones abiertas, cola, caché y preferencias). */
+export function clearLocalData(): void {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('pb.'))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}

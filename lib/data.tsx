@@ -26,6 +26,7 @@ import {
 } from './types';
 import { uuid } from './format';
 import { removeReceipt } from './receipts';
+import { clearLocalData } from './local';
 
 interface Snapshot {
   banks: Bank[];
@@ -56,6 +57,11 @@ interface DataCtx extends Snapshot {
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
+  /** true cuando se llega desde el enlace del correo de recuperación: hay que elegir contraseña nueva. */
+  recovery: boolean;
+  resetPassword: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
+  deleteAccount: () => Promise<string | null>;
   refresh: () => Promise<void>;
   addBank: (name: string, initial: number) => Promise<string | null>;
   archiveBank: (id: string, archived: boolean) => Promise<string | null>;
@@ -101,6 +107,7 @@ function stripKeys(row: object, keys: string[]): Record<string, unknown> {
 export function DataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [recovery, setRecovery] = useState(false);
   const [loading, setLoading] = useState(false);
   const [offline, setOffline] = useState(false);
   const [snap, setSnap] = useState<Snapshot>(EMPTY);
@@ -118,7 +125,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setUser(data.session?.user ?? null);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
       setUser(session?.user ?? null);
     });
     return () => sub.subscription.unsubscribe();
@@ -265,6 +273,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut();
     setSnap(EMPTY);
   }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    if (!supabase) return 'Supabase no está configurado';
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    return errMsg(error);
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) return 'Supabase no está configurado';
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecovery(false);
+    return errMsg(error);
+  }, []);
+
+  const deleteAccount = useCallback(async () => {
+    if (!supabase || !user) return 'Sin sesión';
+    // 1) Fotos de recibos (el borrado de la cuenta no toca Storage).
+    try {
+      const { data: files } = await supabase.storage.from('receipts').list(user.id, { limit: 1000 });
+      if (files?.length) await supabase.storage.from('receipts').remove(files.map((f) => `${user.id}/${f.name}`));
+    } catch {
+      /* si falla, se borra igual la cuenta */
+    }
+    // 2) Cuenta y datos (migración 006).
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) return /delete_my_account/.test(error.message) ? 'Falta ejecutar la migración 006_delete_account.sql en Supabase.' : error.message;
+    clearLocalData();
+    await supabase.auth.signOut();
+    setSnap(EMPTY);
+    return null;
+  }, [user]);
 
   const addBank = useCallback(
     async (name: string, initial: number) => {
@@ -450,6 +489,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     signOut,
+    recovery,
+    resetPassword,
+    updatePassword,
+    deleteAccount,
     refresh,
     addBank,
     archiveBank,

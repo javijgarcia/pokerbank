@@ -7,7 +7,8 @@ import { useData } from '@/lib/data';
 import { elapsedSeconds, loadActives } from '@/lib/local';
 import { hms } from '@/lib/format';
 import type { ActiveSession } from '@/lib/types';
-import AuthForm from './AuthForm';
+import AuthForm, { NewPasswordForm } from './AuthForm';
+import WelcomeTour from './WelcomeTour';
 
 const NAV = [
   { href: '/', label: 'Inicio', d: 'M3 11l9-8 9 8M5 10v10h14V10' },
@@ -70,9 +71,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   if (!d.user) return <AuthForm />;
+  if (d.recovery) return <NewPasswordForm />;
 
   return (
     <>
+      <WelcomeTour />
       <div className="shell">
         <ActivePill />
         {d.offline && (

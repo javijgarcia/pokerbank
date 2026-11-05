@@ -8,10 +8,10 @@
 - **v0.4**: varias sesiones abiertas a la vez, y racha de días jugando (llama). Sin migración de base de datos.
 - **v0.5**: torneos con bounty (KO): interruptor al crear el torneo, «+ Bounty» y notas rápidas (Busteado / Ganado) en Inicio, premio sin bounties + bounties + eliminaciones al cerrar; ITM solo con el premio; estadísticas de bounties. **Requiere migración `supabase/migrations/004_bounties.sql`** (y la 003 si no la ejecutaste).
 - **v0.6**: calendario de torneos (programar, «Empezar ahora», exportar a .ics con aviso 30 min antes, próximos torneos en Inicio) y recibos (foto adjunta al cerrar o registrar una sesión, visible desde el historial). **Requiere migración `supabase/migrations/005_calendar_receipts.sql`** (crea la tabla del calendario, el bucket privado `receipts` y sus políticas).
+- **v0.6.1** (preparación de la beta): recuperar contraseña, recorrido de bienvenida, botón de feedback con versión, nota de privacidad, exportar datos (JSON) y borrar cuenta. **Requiere migración `supabase/migrations/006_delete_account.sql`** y la variable `NEXT_PUBLIC_FEEDBACK_EMAIL`.
 
 ## Propuesta (el orden lo decides tú)
-- **v0.7**: varias divisas con conversión.
-- **v0.8**: historial de manos (nivel de detalle por decidir).
+- **v0.7**: historial de manos (nivel de detalle por decidir).
 
 ## Aparcado
 - Social y staking (no aportan con un solo usuario).
