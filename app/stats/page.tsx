@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useData } from '@/lib/data';
-import { balanceSeries, computeStats, computeStreaks, moodBreakdown, profitSeries } from '@/lib/calc';
+import { balanceSeries, bankBalance, computeStats, computeStreaks, moodBreakdown, profitSeries } from '@/lib/calc';
 import { eur, hoursLabel, pct, signedEur } from '@/lib/format';
 import { inRange, periodLabel, periodRange, type PeriodKind } from '@/lib/period';
 import type { GameType } from '@/lib/types';
@@ -46,9 +46,12 @@ export default function StatsPage() {
   // El gráfico de bankroll incluye ingresos/retiradas y todos los tipos de juego: solo tiene sentido en "Todo".
   const mode = type === 'all' ? chart : 'profit';
   const series = useMemo(
-    () => (mode === 'bank' ? balanceSeries(banks, d.movements, d.sessions, range) : profitSeries(typeSessions, range)),
+    () => (mode === 'bank' ? balanceSeries(banks, d.movements, d.sessions, null) : profitSeries(typeSessions, range)),
     [mode, banks, d.movements, d.sessions, typeSessions, range]
   );
+
+  // Saldo actual de las bolsas visibles (con ingresos y retiradas): es lo que muestra el modo Bankroll.
+  const bankTotal = useMemo(() => banks.reduce((a, b) => a + bankBalance(b, d.movements, d.sessions), 0), [banks, d.movements, d.sessions]);
 
   const maxAbs = Math.max(1, ...moods.map((m) => Math.abs(m.perHour)));
   const isTourney = type === 'tournament';
@@ -73,10 +76,16 @@ export default function StatsPage() {
       />
 
       <section className="card hero">
-        <div className="muted small">Beneficio · {periodLabel(kind, range)}</div>
-        <div className={`big num ${tone(stats.profit)}`} style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.02em' }}>
-          {signedEur(stats.profit)}
-        </div>
+        <div className="muted small">{mode === 'bank' ? 'Bankroll · total' : `Beneficio · ${periodLabel(kind, range)}`}</div>
+        {mode === 'bank' ? (
+          <div className="big num" style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            {eur(bankTotal)}
+          </div>
+        ) : (
+          <div className={`big num ${tone(stats.profit)}`} style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            {signedEur(stats.profit)}
+          </div>
+        )}
         {type === 'all' && (
           <Segmented
             value={chart}
@@ -90,7 +99,7 @@ export default function StatsPage() {
         <BankChart series={series} />
         <p className="tiny muted">
           {mode === 'bank'
-            ? 'Bankroll: incluye ingresos y retiradas.'
+            ? 'Bankroll total desde el principio, con ingresos y retiradas. El filtro de periodo no lo afecta; sí a las estadísticas de abajo.'
             : 'Beneficio acumulado de las sesiones del periodo, empezando en 0.'}
         </p>
       </section>

@@ -45,6 +45,49 @@ const VENUE_OPTS = [
   { value: 'live' as const, label: 'Live' },
 ];
 
+// ───────────── Hora de inicio ─────────────
+
+/** Valor de un <input type="datetime-local"> para un instante dado, en hora local. */
+function toLocalInput(ms: number): string {
+  const d = new Date(ms);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+const AGO = [
+  { label: 'Ahora', min: 0 },
+  { label: 'Hace 30 min', min: 30 },
+  { label: 'Hace 1 h', min: 60 },
+  { label: 'Hace 2 h', min: 120 },
+];
+
+/** Instante elegido: '' = ahora. null si la fecha no es válida o está en el futuro. */
+function resolveStart(value: string): number | null {
+  if (!value) return Date.now();
+  const ts = new Date(value).getTime();
+  if (!Number.isFinite(ts) || ts > Date.now() + 60_000) return null;
+  return ts;
+}
+
+/** Para sesiones que se empiezan a registrar después de haber sentado a jugar. */
+function StartTimeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="stack">
+      <div className="chips" aria-label="Hora de inicio" style={{ flexWrap: 'wrap', overflowX: 'visible' }}>
+        {AGO.map((o) => (
+          <button key={o.label} type="button" className="chip" aria-pressed={o.min === 0 ? value === '' : false} onClick={() => onChange(o.min === 0 ? '' : toLocalInput(Date.now() - o.min * 60_000))}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <Field label="O elige la hora exacta">
+        <input className="input" type="datetime-local" style={{ maxWidth: '100%', minWidth: 0 }} max={toLocalInput(Date.now())} value={value} onChange={(e) => onChange(e.target.value)} />
+      </Field>
+      <p className="tiny muted">{value ? 'El temporizador cuenta desde esa hora.' : 'Empieza a contar ahora.'}</p>
+    </div>
+  );
+}
+
 // ───────────── Campos de configuración (inicio y registro manual) ─────────────
 
 function SetupFields({ value, onChange }: { value: Setup; onChange: (p: Partial<Setup>) => void }) {
@@ -357,6 +400,8 @@ export default function SessionPage() {
   const [rebuy, setRebuy] = useState('');
   const [showRebuy, setShowRebuy] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [startAt, setStartAt] = useState(''); // '' = ahora
+  const [editStart, setEditStart] = useState<string | null>(null); // edición de la hora de inicio de la sesión abierta
   const [presetMsg, setPresetMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -439,6 +484,8 @@ export default function SessionPage() {
     const { stake, buyIn } = resolveSetup(setup);
     if (!setup.bankId) return setErr('Elige una bolsa.');
     if (buyIn == null || buyIn <= 0) return setErr(setup.gameType === 'tournament' ? 'Indica el buy-in inicial.' : 'Indica el nivel o el buy-in inicial.');
+    const ts = resolveStart(startAt);
+    if (ts == null) return setErr('La hora de inicio no es válida o está en el futuro.');
     setErr(null);
     begin({
       id: uuid(),
@@ -452,17 +499,21 @@ export default function SessionPage() {
       stake,
       buy_in: buyIn,
       entries: 1,
-      started_at: Date.now(),
+      started_at: ts,
       paused_total_ms: 0,
       paused_at: null,
     });
+    setStartAt('');
   }
 
   function startFromPreset(p: Preset) {
-    const a = activeFromPreset(p);
+    const ts = resolveStart(startAt);
+    if (ts == null) return setErr('La hora de inicio no es válida o está en el futuro.');
+    const a = activeFromPreset(p, ts);
     if (!a) return setErr('Este preset no tiene buy-in. Bórralo y vuelve a crearlo.');
     setErr(null);
     begin(a);
+    setStartAt('');
   }
 
   async function saveAsPreset() {
@@ -565,6 +616,31 @@ export default function SessionPage() {
             </div>
           </div>
           <QuickNotes a={active} onChange={update} />
+          <p className="tiny muted" style={{ textAlign: 'center' }}>
+            Empezó a las {new Date(active.started_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(active.started_at).toDateString() !== new Date().toDateString() && ` del ${new Date(active.started_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`}{' · '}
+            <button type="button" className="link" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', textDecoration: 'underline', font: 'inherit' }} onClick={() => setEditStart(editStart == null ? toLocalInput(active.started_at) : null)}>
+              Cambiar hora de inicio
+            </button>
+          </p>
+          {editStart != null && (
+            <div className="stack">
+              <input className="input" type="datetime-local" aria-label="Nueva hora de inicio" style={{ maxWidth: '100%', minWidth: 0 }} max={toLocalInput(Date.now())} value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const ts = new Date(editStart).getTime();
+                  if (!Number.isFinite(ts) || ts > Date.now() || (active.paused_at != null && ts > active.paused_at)) return setErr('La hora de inicio no es válida o es posterior a ahora.');
+                  setErr(null);
+                  update({ ...active, started_at: ts });
+                  setEditStart(null);
+                }}
+              >
+                Guardar hora de inicio
+              </button>
+              {err && <p className="error">{err}</p>}
+            </div>
+          )}
           <div className="row">
             <button className="btn grow" onClick={() => update(paused ? resumeActive(active) : pauseActive(active))}>
               {paused ? 'Reanudar' : 'Pausar'}
@@ -679,6 +755,9 @@ export default function SessionPage() {
           Volver a mis sesiones abiertas ({actives.length})
         </button>
       )}
+      <Card title="Hora de inicio">
+        <StartTimeField value={startAt} onChange={setStartAt} />
+      </Card>
       {d.presets.length > 0 && (
         <Card title="Empezar con un toque">
           <div className="chips" aria-label="Presets">
@@ -688,7 +767,8 @@ export default function SessionPage() {
               </button>
             ))}
           </div>
-          <p className="tiny muted">Arranca el temporizador al instante con esa configuración.</p>
+          <p className="tiny muted">Arranca el temporizador con esa configuración y la hora de inicio de arriba.</p>
+          {err && <p className="error">{err}</p>}
         </Card>
       )}
       <Card title={d.presets.length > 0 ? 'O configura una sesión' : undefined}>
