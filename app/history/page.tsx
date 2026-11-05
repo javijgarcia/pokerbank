@@ -8,6 +8,7 @@ import BankFilter from '@/components/BankFilter';
 import SessionRow from '@/components/SessionRow';
 import TournamentStats from '@/components/TournamentStats';
 import { Card, Segmented, Stat, tone } from '@/components/ui';
+import { receiptUrl } from '@/lib/receipts';
 import type { GameType, Session, Venue } from '@/lib/types';
 
 export default function HistoryPage() {
@@ -40,6 +41,14 @@ export default function HistoryPage() {
   async function remove(s: Session) {
     if (!window.confirm('¿Borrar esta sesión? Se recalculará tu bankroll.')) return;
     await d.deleteSession(s.id);
+  }
+
+  const [receipt, setReceipt] = useState<{ url: string | null; loading: boolean } | null>(null);
+
+  async function showReceipt(s: Session) {
+    if (!s.receipt_path) return;
+    setReceipt({ url: null, loading: true });
+    setReceipt({ url: await receiptUrl(s.receipt_path), loading: false });
   }
 
   async function pdf(s: Session) {
@@ -143,7 +152,7 @@ export default function HistoryPage() {
         ) : (
           <div className="list">
             {list.map((s) => (
-              <SessionRow key={s.id} s={s} bankName={d.banks.length > 1 ? bankName(s.bank_id) : undefined} pending={d.pendingIds.has(s.id)} onDelete={remove} onPdf={pdf} />
+              <SessionRow key={s.id} s={s} bankName={d.banks.length > 1 ? bankName(s.bank_id) : undefined} pending={d.pendingIds.has(s.id)} onDelete={remove} onPdf={pdf} onReceipt={showReceipt} />
             ))}
           </div>
         )}
@@ -153,6 +162,23 @@ export default function HistoryPage() {
           </p>
         )}
       </Card>
+      {receipt && (
+        <div
+          role="dialog"
+          aria-label="Recibo"
+          onClick={() => setReceipt(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}
+        >
+          {receipt.loading ? (
+            <p className="muted">Cargando…</p>
+          ) : receipt.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={receipt.url} alt="Recibo de la sesión" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }} />
+          ) : (
+            <p className="error">No se pudo cargar el recibo (¿sin conexión?).</p>
+          )}
+        </div>
+      )}
     </>
   );
 }

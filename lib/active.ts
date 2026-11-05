@@ -1,5 +1,5 @@
 import { uuid } from './format';
-import type { ActiveSession, Preset } from './types';
+import type { ActiveSession, Preset, ScheduledTournament } from './types';
 
 /** Suma de los bounties apuntados en una sesión abierta. */
 export function bountySum(a: ActiveSession): number {
@@ -26,6 +26,26 @@ export function activeFromPreset(p: Preset, now = Date.now()): ActiveSession | n
     bounties: [],
     stake: p.stake,
     buy_in: buyIn,
+    entries: 1,
+    started_at: now,
+    paused_total_ms: 0,
+    paused_at: null,
+  };
+}
+
+/** Sesión en curso a partir de un torneo del calendario. */
+export function activeFromScheduled(t: ScheduledTournament, now = Date.now()): ActiveSession {
+  return {
+    id: uuid(),
+    bank_id: t.bank_id,
+    game_type: 'tournament',
+    venue: t.venue,
+    place: t.place ?? '',
+    tournament_name: t.name,
+    has_bounty: t.has_bounty,
+    bounties: [],
+    stake: t.buy_in,
+    buy_in: t.buy_in,
     entries: 1,
     started_at: now,
     paused_total_ms: 0,

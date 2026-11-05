@@ -24,6 +24,7 @@ export interface Session {
   venue: Venue;
   place: string | null;
   tournament_name?: string | null; // solo torneos; ausente en sesiones antiguas
+  receipt_path?: string | null; // ruta en Storage (bucket receipts) de la foto del recibo
   has_bounty?: boolean; // torneo KO / con bounty
   bounty_total?: number; // bounties ganados (ya incluidos en cash_out); el premio es cash_out - bounty_total
   bounty_count?: number; // eliminaciones con bounty
@@ -101,3 +102,16 @@ export const DEFAULT_BUYINS: Record<GameType, { buyins: number; down_buyins: num
   cash: { buyins: 100, down_buyins: 70 },
   tournament: { buyins: 100, down_buyins: 70 }, // ABI = 1% del bank
 };
+
+/** Torneo programado en el calendario (aún no jugado). */
+export interface ScheduledTournament {
+  id: string;
+  bank_id: string;
+  name: string;
+  venue: Venue;
+  place: string | null;
+  buy_in: number;
+  has_bounty: boolean;
+  starts_at: string; // ISO
+  notes: string | null;
+}

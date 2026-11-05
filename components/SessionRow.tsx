@@ -23,12 +23,14 @@ export default function SessionRow({
   pending,
   onDelete,
   onPdf,
+  onReceipt,
 }: {
   s: Session;
   bankName?: string;
   pending?: boolean;
   onDelete?: (s: Session) => void;
   onPdf?: (s: Session) => void;
+  onReceipt?: (s: Session) => void;
 }) {
   const r = sessionResult(s);
   const hours = s.duration_seconds / 3600;
@@ -57,8 +59,13 @@ export default function SessionRow({
       </div>
       <div style={{ textAlign: 'right' }}>
         <div className={`amt num ${tone(r)}`}>{signedEur(r)}</div>
-        {(onPdf || onDelete) && (
+        {(onPdf || onDelete || onReceipt) && (
           <div className="row" style={{ marginTop: 4, justifyContent: 'flex-end', gap: 4 }}>
+            {onReceipt && s.receipt_path && (
+              <button className="btn btn-ghost btn-sm" onClick={() => onReceipt(s)} aria-label="Ver recibo">
+                Recibo
+              </button>
+            )}
             {onPdf && (
               <button className="btn btn-ghost btn-sm" onClick={() => onPdf(s)} aria-label="Descargar PDF de la sesión">
                 PDF

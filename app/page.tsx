@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useData } from '@/lib/data';
 import BalanceCards from '@/components/BalanceCards';
 import NowPlaying from '@/components/NowPlaying';
+import UpcomingTournaments from '@/components/UpcomingTournaments';
 import SessionRow from '@/components/SessionRow';
 import { Card, Field, parseNum } from '@/components/ui';
 
@@ -69,6 +70,7 @@ export default function Home() {
     <>
       <BalanceCards />
       <NowPlaying />
+      <UpcomingTournaments />
       <Card
         title="Historial"
         action={

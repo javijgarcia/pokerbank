@@ -21,9 +21,11 @@ import {
   type LevelRule,
   type Movement,
   type Preset,
+  type ScheduledTournament,
   type Session,
 } from './types';
 import { uuid } from './format';
+import { removeReceipt } from './receipts';
 
 interface Snapshot {
   banks: Bank[];
@@ -32,9 +34,10 @@ interface Snapshot {
   rules: LevelRule[];
   goals: Goal[];
   presets: Preset[];
+  scheduled: ScheduledTournament[];
 }
 
-const EMPTY: Snapshot = { banks: [], movements: [], sessions: [], rules: [], goals: [], presets: [] };
+const EMPTY: Snapshot = { banks: [], movements: [], sessions: [], rules: [], goals: [], presets: [], scheduled: [] };
 
 /** 'all' = todas las bolsas (Total). Si no, id de una bolsa. */
 export type BankFilter = 'all' | string;
@@ -65,6 +68,8 @@ interface DataCtx extends Snapshot {
   deleteGoal: (id: string) => Promise<string | null>;
   savePreset: (p: Omit<Preset, 'id'>) => Promise<string | null>;
   deletePreset: (id: string) => Promise<string | null>;
+  addScheduled: (t: Omit<ScheduledTournament, 'id'>) => Promise<string | null>;
+  deleteScheduled: (id: string) => Promise<string | null>;
 }
 
 const Ctx = createContext<DataCtx | null>(null);
@@ -78,6 +83,14 @@ export function useData(): DataCtx {
 const errMsg = (e: { message: string } | null | undefined): string | null => (e ? e.message : null);
 
 const BOUNTY_KEYS = ['has_bounty', 'bounty_total', 'bounty_count'];
+
+// Columnas añadidas por migraciones, de la más reciente a la más antigua: si falta alguna migración
+// en la base de datos, se reintenta sin esas columnas para no perder la sesión.
+const SESSION_FALLBACKS: string[][] = [
+  ['receipt_path'],
+  ['receipt_path', ...BOUNTY_KEYS],
+  ['receipt_path', ...BOUNTY_KEYS, 'tournament_name'],
+];
 
 function stripKeys(row: object, keys: string[]): Record<string, unknown> {
   const copy: Record<string, unknown> = { ...row };
@@ -126,13 +139,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!supabase || !user) return;
     setLoading(true);
     try {
-      const [b, m, s, r, g, p] = await Promise.all([
+      const [b, m, s, r, g, p, sc] = await Promise.all([
         supabase.from('banks').select('*').order('created_at'),
         supabase.from('bank_movements').select('*').order('occurred_at'),
         supabase.from('sessions').select('*').order('ended_at'),
         supabase.from('level_rules').select('*'),
         supabase.from('goals').select('*').order('created_at'),
         supabase.from('presets').select('*').order('created_at'),
+        supabase.from('scheduled_tournaments').select('*').order('starts_at'),
       ]);
       const failed = [b, m, s, r, g].find((x) => x.error);
       if (failed?.error) throw new Error(failed.error.message);
@@ -144,6 +158,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         goals: (g.data ?? []) as Goal[],
         // Si la migración 002 aún no se ha ejecutado, la app sigue funcionando sin presets.
         presets: p.error ? [] : ((p.data ?? []) as Preset[]),
+        // Si la migración 005 aún no se ha ejecutado, el calendario aparece vacío.
+        scheduled: sc.error ? [] : ((sc.data ?? []) as ScheduledTournament[]),
       };
       setSnap(next);
       saveCache(user.id, next);
@@ -176,14 +192,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const rows = q.map(({ _uid, ...row }) => ({ ...row, user_id: _uid }));
       let { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
-      // Si faltan migraciones, guardamos la sesión sin las columnas nuevas para no perderla.
-      if (error && /has_bounty|bounty_total|bounty_count/.test(error.message)) {
-        ({ error } = await supabase.from('sessions').upsert(rows.map((r) => stripKeys(r, BOUNTY_KEYS)), { onConflict: 'id' }));
-      }
-      if (error && /tournament_name/.test(error.message)) {
-        ({ error } = await supabase
-          .from('sessions')
-          .upsert(rows.map((r) => stripKeys(r, [...BOUNTY_KEYS, 'tournament_name'])), { onConflict: 'id' }));
+      for (const keys of SESSION_FALLBACKS) {
+        if (!error || !/column|schema cache/i.test(error.message)) break;
+        ({ error } = await supabase.from('sessions').upsert(rows.map((r) => stripKeys(r, keys)), { onConflict: 'id' }));
       }
       if (error) throw new Error(error.message);
       const synced = new Set(q.map((x) => x.id));
@@ -327,11 +338,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       saveQueue(q);
       setQueue(q);
       if (!supabase) return 'Sin conexión';
+      const receipt = snap.sessions.find((s) => s.id === id)?.receipt_path;
       const { error } = await supabase.from('sessions').delete().eq('id', id);
+      if (!error && receipt) void removeReceipt(receipt).catch(() => {});
       await refresh();
       return errMsg(error);
     },
-    [refresh]
+    [refresh, snap.sessions]
   );
 
   const saveRule = useCallback(
@@ -402,6 +415,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [refresh]
   );
 
+  const addScheduled = useCallback(
+    async (t: Omit<ScheduledTournament, 'id'>) => {
+      if (!supabase) return 'Sin conexión';
+      const { error } = await supabase.from('scheduled_tournaments').insert(t);
+      await refresh();
+      return error ? (/scheduled_tournaments/.test(error.message) ? 'Falta ejecutar la migración 005_calendar_receipts.sql en Supabase.' : error.message) : null;
+    },
+    [refresh]
+  );
+
+  const deleteScheduled = useCallback(
+    async (id: string) => {
+      if (!supabase) return 'Sin conexión';
+      const { error } = await supabase.from('scheduled_tournaments').delete().eq('id', id);
+      await refresh();
+      return errMsg(error);
+    },
+    [refresh]
+  );
+
   const value: DataCtx = {
     ...snap,
     sessions,
@@ -429,6 +462,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     deleteGoal,
     savePreset,
     deletePreset,
+    addScheduled,
+    deleteScheduled,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

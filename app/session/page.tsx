@@ -11,6 +11,7 @@ import { DEFAULT_BUYINS, DEFAULT_LADDER, type ActiveSession, type GameType, type
 import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
 import { activeSub, stakeLabel } from '@/components/SessionRow';
 import QuickNotes from '@/components/QuickNotes';
+import { uploadReceipt } from '@/lib/receipts';
 
 interface Setup {
   bankId: string;
@@ -185,6 +186,7 @@ function SessionEditor({
   const [tags, setTags] = useState(base.outcome === 'win' ? 'ganado' : base.outcome === 'bust' ? 'busteado' : '');
   const isT = setup.gameType === 'tournament';
   const hasBounty = isT && setup.bounty;
+  const [receipt, setReceipt] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -208,8 +210,24 @@ function SessionEditor({
     if (!Number.isFinite(startedAt)) return setErr('La fecha no es válida.');
     const endedAt = manual ? startedAt + dur * 60_000 : base.endedAt;
 
+    const id = uuid();
+    let receiptPath: string | null = null;
+    if (receipt && d.user) {
+      if (!navigator.onLine) {
+        setErr('Sin conexión: no se puede subir el recibo ahora. Quita la foto o guarda cuando tengas red.');
+        return;
+      }
+      setBusy(true);
+      try {
+        receiptPath = await uploadReceipt(d.user.id, id, receipt);
+      } catch (e) {
+        setBusy(false);
+        return setErr(`No se pudo subir el recibo: ${(e as Error).message}`);
+      }
+    }
     const s: Session = {
-      id: uuid(),
+      id,
+      receipt_path: receiptPath,
       bank_id: setup.bankId,
       game_type: setup.gameType,
       venue: setup.venue,
@@ -307,6 +325,9 @@ function SessionEditor({
         </Field>
         <Field label="Etiquetas (separadas por comas)">
           <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
+        </Field>
+        <Field label="Recibo (foto, opcional)">
+          <input className="input" type="file" accept="image/*" aria-label="Foto del recibo" onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} />
         </Field>
       </Card>
 
