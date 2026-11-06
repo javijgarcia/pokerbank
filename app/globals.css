@@ -171,11 +171,11 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%;
 
 /* ───────────── Landing pública ───────────── */
 .lp {
-  --lp-felt: #0d2a23;
-  --lp-deep: #081c17;
-  --lp-line: #214e41;
-  --lp-bone: #f1efe6;
-  --lp-muted: #9fbbb0;
+  --lp-felt: #080808;
+  --lp-deep: #131313;
+  --lp-line: #2a2a2a;
+  --lp-bone: #f3f1ea;
+  --lp-muted: #a3a29c;
   --lp-brass: #d9b45a;
   --lp-brass-ink: #2b2005;
   --lp-pos: #6fe3b0;
