@@ -3,7 +3,7 @@
    - Estáticos de Next (/_next/static) e iconos: caché primero.
    - Peticiones a otros orígenes (Supabase) no se tocan. */
 const CACHE = 'pokerbank-v2';
-const SHELL = ['/', '/session', '/stats', '/history', '/goals', '/calendar', '/settings', '/manifest.webmanifest', '/icons/icon-192.png'];
+const SHELL = ['/', '/session', '/stats', '/history', '/goals', '/calendar', '/social', '/settings', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

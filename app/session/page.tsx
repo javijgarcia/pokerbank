@@ -12,6 +12,7 @@ import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
 import { activeSub, stakeLabel } from '@/components/SessionRow';
 import QuickNotes from '@/components/QuickNotes';
 import { uploadReceipt } from '@/lib/receipts';
+import { publishSession, useMyProfile } from '@/lib/social';
 
 interface Setup {
   bankId: string;
@@ -230,6 +231,8 @@ function SessionEditor({
   const isT = setup.gameType === 'tournament';
   const hasBounty = isT && setup.bounty;
   const [receipt, setReceipt] = useState<File | null>(null);
+  const myProfile = useMyProfile(d.user?.id);
+  const [publish, setPublish] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -298,6 +301,7 @@ function SessionEditor({
     };
     setBusy(true);
     await d.saveSession(s);
+    if (publish && myProfile) await publishSession(s); // si falla, se puede publicar luego desde el Historial
     setBusy(false);
     onSaved();
   }
@@ -369,6 +373,12 @@ function SessionEditor({
         <Field label="Etiquetas (separadas por comas)">
           <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
         </Field>
+        {myProfile && (
+          <label className="row small" style={{ gap: 10 }}>
+            <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+            Publicar en el feed de mis amigos (solo ROI %, tiempo y resultado, sin euros)
+          </label>
+        )}
         <Field label="Recibo (foto, opcional)">
           <input className="input" type="file" accept="image/*" aria-label="Foto del recibo" onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} />
         </Field>

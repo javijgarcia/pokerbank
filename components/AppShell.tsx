@@ -14,6 +14,7 @@ const NAV = [
   { href: '/', label: 'Inicio', d: 'M3 11l9-8 9 8M5 10v10h14V10' },
   { href: '/stats', label: 'Estadísticas', d: 'M5 20V11M12 20V4M19 20v-6' },
   { href: '/history', label: 'Historial', d: 'M4 6h16M4 12h16M4 18h10' },
+  { href: '/social', label: 'Social', d: 'M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 10a4 4 0 100-8 4 4 0 000 8zM21 20v-2a4 4 0 00-3-3.9M16 2.1a4 4 0 010 7.8' },
   { href: '/goals', label: 'Objetivos', d: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 16a4 4 0 100-8 4 4 0 000 8zM12 12h.01' },
   { href: '/settings', label: 'Ajustes', d: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4' },
 ];

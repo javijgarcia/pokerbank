@@ -65,7 +65,7 @@ export default function AccountCards() {
 
       <Card title="Privacidad y datos">
         <p className="small muted">
-          Guardamos tu correo, tus bolsas, sesiones, objetivos y, si las subes, las fotos de recibos. Cada usuario solo puede ver sus propios datos. Quien administra la base de datos tiene acceso técnico a ella. No compartimos nada con terceros ni hay publicidad.
+          Guardamos tu correo, tus bolsas, sesiones, objetivos y, si las subes, las fotos de recibos. Cada usuario solo puede ver sus propios datos. Quien administra la base de datos tiene acceso técnico a ella. Si usas la parte social, tus amigos solo ven lo que tú publiques (porcentajes, tiempo y resultado, nunca euros) y, si lo activas, tus estadísticas en %. No compartimos nada con terceros ni hay publicidad.
         </p>
         <button className="btn" onClick={exportJson}>
           Exportar mis datos (JSON)

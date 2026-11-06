@@ -1,4 +1,4 @@
-# PokerBank v0.6.3
+# PokerBank v0.7
 
 PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel. Multiusuario (RLS).
 
@@ -6,7 +6,7 @@ PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel
 1. Crea un proyecto en Supabase y ejecuta `supabase/schema.sql` en el SQL Editor.
    Si ya tenías una versión anterior instalada, ejecuta en este orden SOLO las migraciones que te falten:
    `002_presets.sql` (presets), `003_tournament_name.sql` (nombre del torneo), `004_bounties.sql` (bounty/KO),
-   `005_calendar_receipts.sql` (calendario y recibos) y `006_delete_account.sql` (borrar cuenta), todas en `supabase/migrations/`.
+   `005_calendar_receipts.sql` (calendario y recibos) y `006_delete_account.sql` (borrar cuenta) y `007_social.sql` (perfiles, amigos y feed), todas en `supabase/migrations/`.
    Ejecútalas ANTES de desplegar la nueva versión.
 2. `cp .env.local.example .env.local` y rellena URL y anon key. Añade también `NEXT_PUBLIC_FEEDBACK_EMAIL` (el correo que recibirá el feedback); en Vercel, defínela igual en las variables de entorno y vuelve a desplegar.
 3. `npm install && npm run dev`
@@ -17,14 +17,15 @@ PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel
 Descomprime el zip encima de tu carpeta y **sobrescribe** los archivos existentes. Tu `.env.local` y `node_modules` no vienen en el zip, así que no se tocan. Después ejecuta `npm install` (por si hay dependencias nuevas) y mira `CHANGELOG.md` por si hay que ejecutar alguna migración SQL.
 
 ## Checklist antes de dar acceso a probadores
-1. Ejecuta las migraciones 004, 005 y 006 (y las anteriores que falten).
-2. **Prueba con dos cuentas reales** (dos correos distintos): crea datos en una y comprueba que la otra no ve nada, ni sesiones ni fotos de recibos.
+1. Ejecuta las migraciones 004, 005, 006 y 007 (y las anteriores que falten).
+2. **Prueba con dos cuentas reales** (con la parte social, comprueba además que un usuario sin amistad con el otro no ve su perfil, su feed ni sus estadísticas, y que dos amigos solo ven lo publicado, sin euros) (dos correos distintos): crea datos en una y comprueba que la otra no ve nada, ni sesiones ni fotos de recibos.
 3. **Correos de registro:** el servidor de correo por defecto de Supabase envía muy pocos correos por hora. Configura tu propio SMTP en Supabase > Authentication > SMTP Settings (Resend, Brevo…), o desactiva «Confirm email» durante la beta. Esto afecta también al correo de recuperar contraseña.
 4. En Supabase > Authentication > URL Configuration, la URL de Vercel debe estar en «Site URL» y «Redirect URLs»; si no, el enlace de recuperar contraseña no vuelve a la app.
 5. Define `NEXT_PUBLIC_FEEDBACK_EMAIL` para que aparezca el botón «Enviar feedback» en Ajustes.
 6. Vigila el almacenamiento del plan gratuito de Supabase: las fotos de recibos son lo que más ocupa.
 
 ## Qué incluye
+- Social: perfil, amigos, feed de sesiones y tarjeta de resultado para compartir; solo ROI %, tiempo y resultado, nunca euros.
 - Recuperar contraseña, recorrido de bienvenida, feedback con versión, exportar tus datos (JSON) y borrar tu cuenta (Ajustes).
 - Torneos con bounty (KO), calendario de torneos con exportación .ics y recibos con foto.
 - Varias sesiones abiertas a la vez en «Jugando ahora» (botón +) y racha de días jugando (llama).

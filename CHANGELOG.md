@@ -11,11 +11,18 @@
 - **v0.6.1** (preparación de la beta): recuperar contraseña, recorrido de bienvenida, botón de feedback con versión, nota de privacidad, exportar datos (JSON) y borrar cuenta. **Requiere migración `supabase/migrations/006_delete_account.sql`** y la variable `NEXT_PUBLIC_FEEDBACK_EMAIL`.
 - **v0.6.2**: hora de inicio elegible al abrir una sesión (Ahora, hace 30 min, 1 h, 2 h o una hora exacta; también con presets) y «Cambiar hora de inicio» en una sesión ya abierta. Sin migración.
 - **v0.6.3**: en Estadísticas, el modo Bankroll muestra el bankroll total (saldo actual y evolución desde el principio, con ingresos y retiradas) en vez de repetir el beneficio del periodo. Sin migración.
+- **v0.7**: social. Página Social con perfil (usuario único), amigos (buscar por usuario, solicitudes, aceptar/rechazar), feed de sesiones que cada uno publica a mano y estadísticas del perfil opcionales para amigos. Botón «Compartir» en el Historial (publicar en el feed y tarjeta de resultado en imagen para WhatsApp) y casilla al cerrar una sesión. Todo sin importes en euros: solo ROI %, tiempo, puesto e ITM. **Requiere migración `supabase/migrations/007_social.sql`** (y la 004).
 
 ## Propuesta (el orden lo decides tú)
-- **v0.7**: historial de manos (nivel de detalle por decidir).
-- **Rebranding** (cuando decidas nombre e icono): nuevo nombre, icono y colores. Toca el manifest, los iconos de la PWA, el título, la pantalla de acceso, el PDF y el README. Conviene hacerlo antes de repartir la app a mucha gente, porque quien ya la haya instalado en el móvil tendrá que reinstalarla para ver el icono nuevo.
+- **Social, siguientes pasos** (si el feed funciona): reacciones y comentarios, grupos o clubes privados con ranking, avisos de actividad.
+- **Acceso**: inicio de sesión con Google y captcha de Cloudflare Turnstile al registrarse.
+- **Rebranding + landing pública** con preguntas frecuentes (se hacen juntos).
+- **Historial de manos** (nivel de detalle por decidir).
+- **Plan de pago** (más adelante).
+
+## Para tener en cuenta (sin fecha)
+- **Préstamos**: quién te debe y a quién debes, con fechas, interés y pagos parciales. De momento no se hace.
 
 ## Aparcado
-- Social y staking (no aportan con un solo usuario).
+- Staking.
 - Funciones del plan Elite de la app de referencia.

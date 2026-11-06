@@ -6,6 +6,7 @@ import { computeStats, groupBy } from '@/lib/calc';
 import { eur, hoursLabel, monthKey, monthLabel, pct, signedEur } from '@/lib/format';
 import BankFilter from '@/components/BankFilter';
 import SessionRow from '@/components/SessionRow';
+import ShareSheet from '@/components/ShareSheet';
 import TournamentStats from '@/components/TournamentStats';
 import { Card, Segmented, Stat, tone } from '@/components/ui';
 import { receiptUrl } from '@/lib/receipts';
@@ -43,6 +44,7 @@ export default function HistoryPage() {
     await d.deleteSession(s.id);
   }
 
+  const [sharing, setSharing] = useState<Session | null>(null);
   const [receipt, setReceipt] = useState<{ url: string | null; loading: boolean } | null>(null);
 
   async function showReceipt(s: Session) {
@@ -152,7 +154,7 @@ export default function HistoryPage() {
         ) : (
           <div className="list">
             {list.map((s) => (
-              <SessionRow key={s.id} s={s} bankName={d.banks.length > 1 ? bankName(s.bank_id) : undefined} pending={d.pendingIds.has(s.id)} onDelete={remove} onPdf={pdf} onReceipt={showReceipt} />
+              <SessionRow key={s.id} s={s} bankName={d.banks.length > 1 ? bankName(s.bank_id) : undefined} pending={d.pendingIds.has(s.id)} onDelete={remove} onPdf={pdf} onReceipt={showReceipt} onShare={setSharing} />
             ))}
           </div>
         )}
@@ -162,6 +164,7 @@ export default function HistoryPage() {
           </p>
         )}
       </Card>
+      {sharing && <ShareSheet s={sharing} onClose={() => setSharing(null)} />}
       {receipt && (
         <div
           role="dialog"
