@@ -12,6 +12,7 @@
 - **v0.6.2**: hora de inicio elegible al abrir una sesión (Ahora, hace 30 min, 1 h, 2 h o una hora exacta; también con presets) y «Cambiar hora de inicio» en una sesión ya abierta. Sin migración.
 - **v0.6.3**: en Estadísticas, el modo Bankroll muestra el bankroll total (saldo actual y evolución desde el principio, con ingresos y retiradas) en vez de repetir el beneficio del periodo. Sin migración.
 - **v0.7**: social. Página Social con perfil (usuario único), amigos (buscar por usuario, solicitudes, aceptar/rechazar), feed de sesiones que cada uno publica a mano y estadísticas del perfil opcionales para amigos. Botón «Compartir» en el Historial (publicar en el feed y tarjeta de resultado en imagen para WhatsApp) y casilla al cerrar una sesión. Todo sin importes en euros: solo ROI %, tiempo, puesto e ITM. **Requiere migración `supabase/migrations/007_social.sql`** (y la 004).
+- **v0.7.1**: landing pública en la portada para quien no ha iniciado sesión (titular, demo interactiva de una sesión, funciones, pasos y preguntas frecuentes). La app instalada en el móvil va directa al acceso. El nombre de la app vive en `lib/version.ts` (`APP_NAME`). Sin migración.
 
 ## Propuesta (el orden lo decides tú)
 - **Social, siguientes pasos** (si el feed funciona): reacciones y comentarios, grupos o clubes privados con ranking, avisos de actividad.

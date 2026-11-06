@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useData } from '@/lib/data';
+import { APP_NAME } from '@/lib/version';
 import { Field } from './ui';
 
 /** Pantalla para elegir contraseña nueva tras pulsar el enlace del correo de recuperación. */
@@ -34,9 +35,9 @@ export function NewPasswordForm() {
   );
 }
 
-export default function AuthForm() {
+export default function AuthForm({ initialMode = 'in', onBack }: { initialMode?: 'in' | 'up'; onBack?: () => void }) {
   const { signIn, signUp, resetPassword } = useData();
-  const [mode, setMode] = useState<'in' | 'up' | 'reset'>('in');
+  const [mode, setMode] = useState<'in' | 'up' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -59,10 +60,15 @@ export default function AuthForm() {
 
   return (
     <main className="center">
+      {onBack && (
+        <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onBack}>
+          Volver
+        </button>
+      )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="logo" src="/icons/icon-192.png" alt="" />
       <div>
-        <h1>PokerBank</h1>
+        <h1>{APP_NAME}</h1>
         <p className="muted">Sesiones y bankroll de póker.</p>
       </div>
       <form className="stack" onSubmit={submit}>

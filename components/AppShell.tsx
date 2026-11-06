@@ -9,6 +9,7 @@ import { hms } from '@/lib/format';
 import type { ActiveSession } from '@/lib/types';
 import AuthForm, { NewPasswordForm } from './AuthForm';
 import WelcomeTour from './WelcomeTour';
+import Landing from './Landing';
 
 const NAV = [
   { href: '/', label: 'Inicio', d: 'M3 11l9-8 9 8M5 10v10h14V10' },
@@ -49,6 +50,7 @@ function ActivePill() {
 export default function AppShell({ children }: { children: ReactNode }) {
   const d = useData();
   const pathname = usePathname();
+  const [entry, setEntry] = useState<'in' | 'up' | null>(null); // null = ver la landing
 
   if (!d.configured) {
     return (
@@ -71,7 +73,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!d.user) return <AuthForm />;
+  if (!d.user) {
+    // La landing solo se ve en la portada y en el navegador; la app instalada va directa al acceso.
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    if (pathname === '/' && !standalone && entry === null) return <Landing onEnter={setEntry} />;
+    return <AuthForm initialMode={entry === 'up' ? 'up' : 'in'} onBack={pathname === '/' && !standalone ? () => setEntry(null) : undefined} />;
+  }
   if (d.recovery) return <NewPasswordForm />;
 
   return (

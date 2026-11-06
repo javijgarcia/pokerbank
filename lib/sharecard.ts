@@ -1,8 +1,7 @@
 import { roiLabel, postTitle } from '@/components/PostCard';
 import { hoursLabel } from './format';
 import type { SharedDraft } from './social';
-
-export const APP_NAME = 'PokerBank';
+import { APP_NAME } from './version';
 
 /** Dibuja la tarjeta de resultado (1080×1080). Solo lleva % y tiempo, nunca euros. */
 export async function drawShareCard(p: SharedDraft, playerName: string): Promise<Blob> {
