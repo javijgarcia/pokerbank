@@ -71,6 +71,15 @@ export default function Home() {
       <BalanceCards />
       <NowPlaying />
       <UpcomingTournaments />
+      <Link href="/icm" className="card row between" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <span>
+          <strong>Calculadora de ICM</strong>
+          <span className="small muted" style={{ display: 'block' }}>
+            Valor en € de cada stack según los premios
+          </span>
+        </span>
+        <span className="muted" aria-hidden>›</span>
+      </Link>
       <Card
         title="Historial"
         action={

@@ -270,3 +270,4 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%;
 .lvl { display: grid; grid-template-columns: 1.1fr 0.9fr 0.9fr 0.8fr 1.3fr; gap: 6px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
 .lvl > :not(:first-child) { text-align: right; }
 .lvl-head { border-top: 0; padding-top: 0; color: var(--muted); font-size: 12px; }
+.icm-grid { grid-template-columns: 1.3fr 0.8fr 0.8fr 1fr 1fr; }
