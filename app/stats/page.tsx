@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import { useData } from '@/lib/data';
-import { balanceSeries, bankBalance, computeStats, computeStreaks, moodBreakdown, profitSeries } from '@/lib/calc';
+import { balanceSeries, bankBalance, byLevel, computeStats, computeStreaks, moodBreakdown, profitSeries } from '@/lib/calc';
 import { eur, hoursLabel, pct, signedEur } from '@/lib/format';
 import { inRange, periodLabel, periodRange, type PeriodKind } from '@/lib/period';
 import type { GameType } from '@/lib/types';
 import BankChart from '@/components/BankChart';
 import BankFilter from '@/components/BankFilter';
 import { Card, Segmented, tone } from '@/components/ui';
+import { IconCash, IconLayers, IconTrophy } from '@/components/icons';
 
 function Box({ label, value, className = '' }: { label: string; value: string; className?: string }) {
   return (
@@ -41,6 +42,8 @@ export default function StatsPage() {
 
   const stats = useMemo(() => computeStats(periodSessions), [periodSessions]);
   const moods = useMemo(() => moodBreakdown(periodSessions), [periodSessions]);
+  const tLevels = useMemo(() => byLevel(periodSessions, 'tournament'), [periodSessions]);
+  const cLevels = useMemo(() => byLevel(periodSessions, 'cash'), [periodSessions]);
   const streaks = useMemo(() => computeStreaks(typeSessions), [typeSessions]);
 
   // El gráfico de bankroll incluye ingresos/retiradas y todos los tipos de juego: solo tiene sentido en "Todo".
@@ -69,9 +72,9 @@ export default function StatsPage() {
         value={type}
         onChange={setType}
         options={[
-          { value: 'all', label: 'Todo' },
-          { value: 'cash', label: 'Cash' },
-          { value: 'tournament', label: 'Torneos' },
+          { value: 'all', label: 'Todo', icon: <IconLayers /> },
+          { value: 'cash', label: 'Cash', icon: <IconCash /> },
+          { value: 'tournament', label: 'Torneos', icon: <IconTrophy /> },
         ]}
       />
 
@@ -134,6 +137,49 @@ export default function StatsPage() {
           <Box label="Invertido" value={eur(stats.invested)} />
           <Box label="Estado mental medio" value={stats.avgMood == null ? '—' : `${stats.avgMood.toFixed(1)} / 5`} />
         </div>
+      )}
+
+      {type !== 'cash' && tLevels.length > 0 && (
+        <Card title="Torneos por buy-in">
+          <div className="lvl lvl-head" aria-hidden>
+            <span>Buy-in</span>
+            <span>Torneos</span>
+            <span>ROI</span>
+            <span>ITM</span>
+            <span>Beneficio</span>
+          </div>
+          {tLevels.map((r) => (
+            <div className="lvl" key={r.level}>
+              <strong className="num">{eur(r.level)}</strong>
+              <span className="num">{r.count}</span>
+              <span className={`num ${tone(r.roi)}`}>{pct(r.roi, 0)}</span>
+              <span className="num">{r.itm == null ? '—' : pct(r.itm, 0)}</span>
+              <span className={`num ${tone(r.profit)}`}>{signedEur(r.profit)}</span>
+            </div>
+          ))}
+          <p className="tiny muted">Agrupado por el buy-in inicial de cada torneo. Con pocos torneos en un nivel, el ROI es muy ruidoso.</p>
+        </Card>
+      )}
+
+      {type !== 'tournament' && cLevels.length > 0 && (
+        <Card title="Cash por nivel">
+          <div className="lvl lvl-head" aria-hidden>
+            <span>Nivel</span>
+            <span>Sesiones</span>
+            <span>€/hora</span>
+            <span>ROI</span>
+            <span>Beneficio</span>
+          </div>
+          {cLevels.map((r) => (
+            <div className="lvl" key={r.level}>
+              <strong className="num">NL{r.level}</strong>
+              <span className="num">{r.count}</span>
+              <span className={`num ${tone(r.perHour)}`}>{signedEur(r.perHour)}</span>
+              <span className={`num ${tone(r.roi)}`}>{pct(r.roi, 0)}</span>
+              <span className={`num ${tone(r.profit)}`}>{signedEur(r.profit)}</span>
+            </div>
+          ))}
+        </Card>
       )}
 
       {streaks.current.type && (

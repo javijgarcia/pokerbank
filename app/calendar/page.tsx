@@ -9,10 +9,11 @@ import { upsertActive } from '@/lib/local';
 import { eur } from '@/lib/format';
 import type { ScheduledTournament, Venue } from '@/lib/types';
 import { Card, Field, Segmented, parseNum } from '@/components/ui';
+import { IconGlobe, IconPin } from '@/components/icons';
 
 const VENUE_OPTS = [
-  { value: 'online' as const, label: 'Online' },
-  { value: 'live' as const, label: 'Live' },
+  { value: 'online' as const, label: 'Online', icon: <IconGlobe /> },
+  { value: 'live' as const, label: 'Live', icon: <IconPin /> },
 ];
 
 const when = (iso: string) =>

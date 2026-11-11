@@ -90,7 +90,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
 
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 3px; }
-.seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 8px; border-radius: 9px; cursor: pointer; min-height: 40px; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 10px 8px; border-radius: 9px; cursor: pointer; min-height: 40px; }
 .seg button[aria-pressed='true'] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
 
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
@@ -265,3 +265,8 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%;
   .lp-row-flip > :first-child { order: 2; }
   .lp-extras > div { grid-template-columns: 220px 1fr; }
 }
+
+/* Tabla compacta por nivel (estadísticas) */
+.lvl { display: grid; grid-template-columns: 1.1fr 0.9fr 0.9fr 0.8fr 1.3fr; gap: 6px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.lvl > :not(:first-child) { text-align: right; }
+.lvl-head { border-top: 0; padding-top: 0; color: var(--muted); font-size: 12px; }

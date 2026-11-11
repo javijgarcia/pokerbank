@@ -1,4 +1,4 @@
-import type { Bank, Goal, LevelRule, Movement, Session } from './types';
+import type { Bank, GameType, Goal, LevelRule, Movement, Session } from './types';
 
 export const sessionResult = (s: Session): number => s.cash_out - s.buy_in;
 
@@ -308,6 +308,46 @@ export function groupBy(list: Session[], keyFn: (s: Session) => string): GroupRo
       return { key, count: ss.length, profit: st.profit, perHour: st.perHour };
     })
     .sort((a, b) => b.profit - a.profit);
+}
+
+/** Estadísticas de un nivel de buy-in (torneos) o de stake (cash). */
+export interface LevelRow {
+  level: number; // torneos: buy-in inicial; cash: nivel (NL)
+  count: number;
+  entries: number;
+  invested: number;
+  profit: number;
+  roi: number;
+  itm: number | null; // solo torneos
+  perHour: number;
+  seconds: number;
+}
+
+/** Agrupa las sesiones de un tipo por nivel de buy-in. Los niveles salen ordenados de menor a mayor. */
+export function byLevel(list: Session[], type: GameType): LevelRow[] {
+  const map = new Map<number, Session[]>();
+  for (const s of list) {
+    if (s.game_type !== type) continue;
+    // Torneos: el buy-in inicial (stake); si falta, el buy-in medio por entrada.
+    const level = round2(s.stake ?? s.buy_in / Math.max(1, s.entries));
+    map.set(level, [...(map.get(level) ?? []), s]);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([level, ss]) => {
+      const st = computeStats(ss);
+      return {
+        level,
+        count: ss.length,
+        entries: st.entries,
+        invested: st.invested,
+        profit: st.profit,
+        roi: st.roi,
+        itm: type === 'tournament' ? st.itm : null,
+        perHour: st.perHour,
+        seconds: st.seconds,
+      };
+    });
 }
 
 // ───────────────────────────── Niveles ─────────────────────────────

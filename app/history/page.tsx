@@ -7,6 +7,7 @@ import { eur, hoursLabel, monthKey, monthLabel, pct, signedEur } from '@/lib/for
 import BankFilter from '@/components/BankFilter';
 import SessionRow from '@/components/SessionRow';
 import ShareSheet from '@/components/ShareSheet';
+import { IconCash, IconTrophy } from '@/components/icons';
 import TournamentStats from '@/components/TournamentStats';
 import { Card, Segmented, Stat, tone } from '@/components/ui';
 import { receiptUrl } from '@/lib/receipts';
@@ -85,8 +86,8 @@ export default function HistoryPage() {
           onChange={setType}
           options={[
             { value: 'all', label: 'Todo' },
-            { value: 'cash', label: 'Cash' },
-            { value: 'tournament', label: 'Torneos' },
+            { value: 'cash', label: 'Cash', icon: <IconCash /> },
+            { value: 'tournament', label: 'Torneos', icon: <IconTrophy /> },
           ]}
         />
         <Segmented

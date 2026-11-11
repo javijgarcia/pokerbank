@@ -11,6 +11,7 @@ import type { ActiveSession } from '@/lib/types';
 import { Card, parseNum } from './ui';
 import { activeSub } from './SessionRow';
 import QuickNotes from './QuickNotes';
+import { IconCash, IconTrophy } from './icons';
 
 function Flame() {
   return (
@@ -77,10 +78,12 @@ export default function NowPlaying() {
       {showStart && (
         <div className="stack">
           <div className="row" style={{ gap: 8 }}>
-            <Link href="/session?type=cash" className="btn grow">
+            <Link href="/session?type=cash" className="btn grow" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <IconCash />
               Cash
             </Link>
-            <Link href="/session?type=tournament" className="btn grow">
+            <Link href="/session?type=tournament" className="btn grow" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <IconTrophy />
               Torneo
             </Link>
           </div>

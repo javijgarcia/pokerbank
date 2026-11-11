@@ -11,6 +11,7 @@ import { DEFAULT_BUYINS, DEFAULT_LADDER, type ActiveSession, type GameType, type
 import { Card, Field, Rating, Segmented, parseNum } from '@/components/ui';
 import { activeSub, stakeLabel } from '@/components/SessionRow';
 import QuickNotes from '@/components/QuickNotes';
+import { IconCash, IconGlobe, IconPin, IconTrophy } from '@/components/icons';
 import { uploadReceipt } from '@/lib/receipts';
 import { publishSession, useMyProfile } from '@/lib/social';
 
@@ -38,12 +39,12 @@ function resolveSetup(s: Setup): { stake: number | null; buyIn: number | null } 
 }
 
 const GAME_OPTS = [
-  { value: 'cash' as const, label: 'Cash' },
-  { value: 'tournament' as const, label: 'Torneo' },
+  { value: 'cash' as const, label: 'Cash', icon: <IconCash /> },
+  { value: 'tournament' as const, label: 'Torneo', icon: <IconTrophy /> },
 ];
 const VENUE_OPTS = [
-  { value: 'online' as const, label: 'Online' },
-  { value: 'live' as const, label: 'Live' },
+  { value: 'online' as const, label: 'Online', icon: <IconGlobe /> },
+  { value: 'live' as const, label: 'Live', icon: <IconPin /> },
 ];
 
 // ───────────── Hora de inicio ─────────────
