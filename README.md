@@ -1,4 +1,4 @@
-# PokerBank v0.9
+# PokerBank v0.9.1
 
 PWA de registro de sesiones y bankroll de póker. Next.js 15 + Supabase + Vercel. Multiusuario (RLS).
 

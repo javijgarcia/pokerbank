@@ -16,6 +16,7 @@
 - **v0.7.2**: la landing pasa a fondo negro con acento dorado. Sin migración.
 - **v0.8**: iconos en las opciones (Cash/Torneo, Online/Live, filtros de Estadísticas e Historial) y estadísticas por buy-in: «Torneos por buy-in» (torneos, ROI, ITM, beneficio) y «Cash por nivel» (sesiones, €/hora, ROI, beneficio). Sin migración.
 - **v0.9**: Calculadora de ICM (pantalla `/icm`, acceso desde Inicio): premios por puesto (con repartos típicos a partir de la bolsa) y fichas de hasta 10 jugadores; devuelve el valor en € de cada stack, su % del premio y la diferencia frente a repartir por fichas (Malmuth-Harville). Sin base de datos ni migración; se recuerda lo último que pusiste.
+- **v0.9.1**: calendario de resultados en Estadísticas: cada día del mes muestra lo ganado o perdido (verde/rojo, vacío si no jugaste), con resumen mensual (días jugados, ganados, perdidos y sin jugar, % de días ganados, media por día, mejor y peor día, racha de días ganados, sesiones y horas). Tocando un día ves sus sesiones. Respeta el filtro de bolsa y de tipo de juego. Sin migración.
 
 ## Propuesta (el orden lo decides tú)
 - **Social, siguientes pasos** (si el feed funciona): reacciones y comentarios, grupos o clubes privados con ranking, avisos de actividad.

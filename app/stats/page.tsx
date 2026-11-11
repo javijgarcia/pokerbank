@@ -8,6 +8,7 @@ import { inRange, periodLabel, periodRange, type PeriodKind } from '@/lib/period
 import type { GameType } from '@/lib/types';
 import BankChart from '@/components/BankChart';
 import BankFilter from '@/components/BankFilter';
+import DayCalendar from '@/components/DayCalendar';
 import { Card, Segmented, tone } from '@/components/ui';
 import { IconCash, IconLayers, IconTrophy } from '@/components/icons';
 
@@ -106,6 +107,8 @@ export default function StatsPage() {
             : 'Beneficio acumulado de las sesiones del periodo, empezando en 0.'}
         </p>
       </section>
+
+      <DayCalendar sessions={typeSessions} bankName={(id) => (d.banks.length > 1 ? d.banks.find((b) => b.id === id)?.name : undefined)} />
 
       {stats.count === 0 ? (
         <Card>

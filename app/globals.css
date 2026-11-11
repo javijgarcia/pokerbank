@@ -271,3 +271,20 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; width: 100%;
 .lvl > :not(:first-child) { text-align: right; }
 .lvl-head { border-top: 0; padding-top: 0; color: var(--muted); font-size: 12px; }
 .icm-grid { grid-template-columns: 1.3fr 0.8fr 0.8fr 1fr 1fr; }
+.daycal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dc-h { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 2px; }
+.dc { display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; min-height: 52px; padding: 4px 3px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); text-align: center; font: inherit; cursor: default; }
+.dc i { font-style: normal; font-size: 11px; text-align: left; padding-left: 2px; }
+.dc b { font-size: 12px; font-weight: 700; line-height: 1.1; padding-bottom: 2px; white-space: nowrap; }
+.dc:disabled { opacity: 1; }
+.dc.future { opacity: 0.45; }
+.dc.win { background: color-mix(in srgb, var(--pos) 16%, transparent); border-color: color-mix(in srgb, var(--pos) 40%, transparent); color: var(--pos); cursor: pointer; }
+.dc.loss { background: color-mix(in srgb, var(--neg) 16%, transparent); border-color: color-mix(in srgb, var(--neg) 40%, transparent); color: var(--neg); cursor: pointer; }
+.dc.even { cursor: pointer; color: var(--text); }
+.dc.today { outline: 2px solid var(--text); outline-offset: -2px; }
+.dc.sel { box-shadow: 0 0 0 2px var(--accent); }
+.dc.win i, .dc.loss i { color: var(--muted); }
+.cal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.cs { background: var(--surface-2); border-radius: 12px; padding: 9px 10px; min-width: 0; }
+.cs .k { font-size: 11px; color: var(--muted); }
+.cs .v { font-size: 15px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
